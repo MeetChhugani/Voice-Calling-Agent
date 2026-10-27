@@ -96,12 +96,12 @@ export const VAPI_ASSISTANT_CONFIG = {
   firstMessage: "Hello, welcome to Studio Olives Cre. May I know your name, please?",
   transcriber: {
     provider: "deepgram",
-    model: "nova-2",
-    language: "en-IN", // Indian English / Hinglish support
+    model: "nova-2-general",
+    language: "hi", // Hindi — proper Hinglish support
   },
   model: {
     provider: "openai",
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     temperature: 0.3,
     messages: [
       {
@@ -210,6 +210,11 @@ export const VAPI_ASSISTANT_CONFIG = {
   },
   voice: {
     provider: "11labs",
-    voiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel / elegant warm female voice
+    voiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel — original calm luxury voice
+    stability: 0.6,
+    similarityBoost: 0.8,
+    speed: 0.85, // Slower, calm, natural pacing
+    style: 0.0,
+    useSpeakerBoost: true,
   },
 };
