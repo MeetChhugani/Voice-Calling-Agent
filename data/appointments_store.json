@@ -1,0 +1,38 @@
+[
+  {
+    "AppointmentID": "meet-1793088070052",
+    "ClientName": "Meet Chhugani",
+    "PhoneNumber": "+91 7862806190",
+    "PhoneVerified": "PENDING",
+    "Email": "meetchhugani1230@gmail.com",
+    "PropertyType": "Luxury Villa / Residence",
+    "CityLocation": "Delhi NCR",
+    "ProjectScope": "Turnkey Interiors & Architecture",
+    "Budget": "₹5 Cr+ Benchmark",
+    "BudgetQualified": "UNDER EVALUATION",
+    "ConsultationDateTime": "30/10/2026, 3:30:00 pm",
+    "Timezone": "Asia/Kolkata",
+    "MeetingStatus": "PENDING",
+    "GoogleMeetUrl": "Pending Concierge Link",
+    "CallSummary": "Booked through Tisha Voice Consultation Phone System",
+    "BookedAt": "27/10/2026, 1:31:10 pm"
+  },
+  {
+    "AppointmentID": "APT-VIP-001",
+    "ClientName": "Hardik Pandya (Portfolio Reference)",
+    "PhoneNumber": "+919811002233",
+    "PhoneVerified": "YES",
+    "Email": "hardik@penthouse.in",
+    "PropertyType": "Penthouse",
+    "CityLocation": "Vadodara / Mumbai",
+    "ProjectScope": "6,000 sq ft Turnkey Architecture & Interiors",
+    "Budget": "₹5 Cr+ Benchmark",
+    "BudgetQualified": "QUALIFIED (₹5 Cr+)",
+    "ConsultationDateTime": "Thursday, Nov 05 at 11:30 AM IST",
+    "Timezone": "Asia/Kolkata",
+    "MeetingStatus": "CONFIRMED",
+    "GoogleMeetUrl": "https://meet.google.com/sample-meet-link",
+    "CallSummary": "Luxury penthouse concept session with Studio Olives Cre partners.",
+    "BookedAt": "27/10/2026, 1:31:10 pm"
+  }
+]
