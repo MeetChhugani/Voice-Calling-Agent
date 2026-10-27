@@ -209,12 +209,7 @@ export const VAPI_ASSISTANT_CONFIG = {
     ],
   },
   voice: {
-    provider: "11labs",
-    voiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel — original calm luxury voice
-    stability: 0.6,
-    similarityBoost: 0.8,
-    speed: 0.85, // Slower, calm, natural pacing
-    style: 0.0,
-    useSpeakerBoost: true,
+    provider: "azure",
+    voiceId: "hi-IN-SwaraNeural", // Authentic native Indian Hindi female voice (clear, polite, natural accent)
   },
 };
