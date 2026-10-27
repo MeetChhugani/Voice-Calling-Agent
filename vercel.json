@@ -3,8 +3,5 @@
   "outputDirectory": ".next",
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
-  "regions": ["sin1"],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  "regions": ["sin1"]
 }
