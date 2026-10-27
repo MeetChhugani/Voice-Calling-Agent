@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Both cacheComponents + partialPrefetching must be enabled together or both off
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Note: cacheComponents + partialPrefetching removed — incompatible with
+  // force-dynamic API routes. Use unstable_noStore() per-route instead.
 };
 
 export default nextConfig;
