@@ -14,8 +14,13 @@ export async function GET(request: Request) {
 
     // Generate genuine OpenXML Buffer via ExcelJS
     const excelBuffer = await ExcelService.generateExcelFile(rows, filePath);
+    // Convert Node.js Buffer → ArrayBuffer so it's valid as BodyInit in Next.js 16
+    const arrayBuffer = excelBuffer.buffer.slice(
+      excelBuffer.byteOffset,
+      excelBuffer.byteOffset + excelBuffer.byteLength
+    ) as ArrayBuffer;
 
-    return new Response(excelBuffer, {
+    return new Response(arrayBuffer, {
       status: 200,
       headers: {
         "Content-Type":
