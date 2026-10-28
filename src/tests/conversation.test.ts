@@ -1,35 +1,36 @@
 import { describe, it, expect } from "vitest";
-import { TISHA_SYSTEM_PROMPT } from "../config/tisha-system-prompt";
+import { TISHA_BANKING_SYSTEM_PROMPT } from "../config/tisha-system-prompt";
 
-describe("Tisha Conversation Rules and Prompt Verification", () => {
-  it("enforces asking caller's name first", () => {
-    expect(TISHA_SYSTEM_PROMPT).toContain("May I know your name, please?");
-    expect(TISHA_SYSTEM_PROMPT).toContain(
-      "The very first substantive question in every new conversation MUST ask the caller's name"
+describe("Tisha Banking Conversation Rules and Prompt Verification", () => {
+  it("enforces asking customer's name first", () => {
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("May I know your name, please?");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain(
+      "The very first question in every new conversation MUST ask the customer's name"
     );
-    expect(TISHA_SYSTEM_PROMPT).toContain('Do not begin with a generic "How can I help you?"');
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("Sabse pehle, aapka naam jaan sakti hoon?");
   });
 
   it("enforces asking exactly one question at a time", () => {
-    expect(TISHA_SYSTEM_PROMPT).toContain("Ask EXACTLY ONE question at a time and wait for the caller's answer");
-    expect(TISHA_SYSTEM_PROMPT).toContain("NEVER read a list of questions aloud");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("Ask EXACTLY ONE question at a time and wait for the customer's response");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("NEVER rapid-fire a list of questions");
   });
 
-  it("includes all required luxury brand facts", () => {
-    expect(TISHA_SYSTEM_PROMPT).toContain("Studio Olives Cre was established in 2016");
-    expect(TISHA_SYSTEM_PROMPT).toContain("Approximately 75");
-    expect(TISHA_SYSTEM_PROMPT).toContain("Over 50 luxury completed projects");
-    expect(TISHA_SYSTEM_PROMPT).toContain("E-39 Naraina Vihar, New Delhi");
-    expect(TISHA_SYSTEM_PROMPT).toContain("Hardik Pandya");
-    expect(TISHA_SYSTEM_PROMPT).toContain("five crore rupees");
+  it("strictly prohibits asking for OTP, PIN, CVV, or passwords", () => {
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("NEVER ASK THE CUSTOMER FOR:");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("OTPs or verification codes");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("UPI PINs or ATM PINs");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("CVVs (3-digit card security code)");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("Please stop right there! For your security, HDFC Bank will never ask for your OTP");
   });
 
-  it("prohibits misrepresenting as a human architect or generating CAD designs", () => {
-    expect(TISHA_SYSTEM_PROMPT).toContain("You are NOT a human architect or designer");
-    expect(TISHA_SYSTEM_PROMPT).toContain("Do not misrepresent yourself or claim to have performed actual design work");
+  it("includes official 24x7 customer care helplines and approved facts", () => {
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("1800 1600");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("1800 2600");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("Millennia Credit Card");
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("Regalia Gold");
   });
 
-  it("prioritizes online consultation before site visits", () => {
-    expect(TISHA_SYSTEM_PROMPT).toContain("Always recommend an online consultation with the senior design team before considering a site visit");
+  it("requires digit-by-digit verification for phone numbers", () => {
+    expect(TISHA_BANKING_SYSTEM_PROMPT).toContain("ALWAYS verify it by repeating every digit separately");
   });
 });

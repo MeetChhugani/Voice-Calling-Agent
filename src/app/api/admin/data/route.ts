@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { SupabaseService } from "@/services/supabase";
+import { SupportRequestService } from "@/services/support-request-service";
 import { ExcelService } from "@/services/excel-service";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
@@ -23,40 +24,30 @@ export async function GET(request: Request) {
       }
     }
 
-    const [leadsRes, meetingsRes] = await Promise.all([
-      SupabaseService.getAllLeads(),
-      SupabaseService.getAllMeetings(),
-    ]);
+    const requests = SupportRequestService.getAllRequests();
+    const excelRequests = ExcelService.getAllHDFCRequests();
 
-    const excelAppointments = ExcelService.getAllAppointments();
-
-    const totalLeads = leadsRes.leads.length;
-    const qualifiedLeads = leadsRes.leads.filter(
-      (l) => l.lead_status === "qualified" || l.lead_status === "booked"
-    ).length;
-    const confirmedMeetings = meetingsRes.meetings.filter(
-      (m) => m.booking_status === "confirmed"
-    ).length;
-    const pendingRequests = meetingsRes.meetings.filter(
-      (m) => m.booking_status === "pending"
-    ).length;
-    const failedBookings = meetingsRes.meetings.filter(
-      (m) => m.booking_status === "failed"
-    ).length;
+    const totalRequests = requests.length;
+    const fraudAlerts = requests.filter((r) => r.is_fraud_or_urgent).length;
+    const pendingCallbacks = requests.filter((r) => r.status === "registered" || r.status === "in_progress").length;
+    const resolvedTickets = requests.filter((r) => r.status === "resolved").length;
+    const escalatedRequests = requests.filter((r) => r.status === "escalated").length;
 
     return NextResponse.json({
       metrics: {
-        totalLeads,
-        qualifiedLeads,
-        confirmedMeetings,
-        pendingRequests,
-        failedBookings,
-        excelRecordsCount: excelAppointments.length,
+        totalSessions: totalRequests,
+        totalRequests,
+        fraudAlerts,
+        pendingCallbacks,
+        resolvedTickets,
+        escalatedRequests,
+        excelRecordsCount: excelRequests.length,
       },
-      leads: leadsRes.leads,
-      meetings: meetingsRes.meetings,
-      excelAppointments,
-      isFallback: leadsRes.isFallback || meetingsRes.isFallback,
+      supportRequests: requests,
+      excelRecords: excelRequests,
+      leads: [],
+      meetings: [],
+      excelAppointments: [],
     });
   } catch (err: unknown) {
     console.error("[API admin/data] error:", err);

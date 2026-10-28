@@ -1,56 +1,59 @@
 import { describe, it, expect } from "vitest";
-import { GoogleCalendarService } from "../services/google-calendar";
-import { SupabaseService } from "../services/supabase";
+import { SupportRequestService } from "../services/support-request-service";
+import { SecurityRedactionService } from "../services/security-redaction-service";
+import { BankKnowledgeService } from "../services/bank-knowledge-service";
 
-describe("Booking and Persistence Graceful Fallback Verification", () => {
-  it("checkAvailability returns structured slots and honest isConnected flag", async () => {
-    const result = await GoogleCalendarService.checkAvailability("2026-10-20");
-    expect(result.slots.length).toBeGreaterThan(0);
-    expect(result.slots[0]).toHaveProperty("start");
-    expect(result.slots[0]).toHaveProperty("display");
-    // Since Google credentials are not set in test environment, isConnected must be false
-    expect(result.isConnected).toBe(false);
-  });
-
-  it("createBooking does not invent fake Google Meet links without credentials", async () => {
-    const result = await GoogleCalendarService.createBooking({
-      fullName: "Ananya Roy",
+describe("Support Request & Security Persistence Verification", () => {
+  it("creates a support request with genuine ticket ID format", async () => {
+    const res = await SupportRequestService.createRequest({
+      customer_name: "Amit Patel",
       phone: "+919876543210",
-      email: "ananya@example.com",
-      startTime: "2026-10-20T11:30:00+05:30",
-      endTime: "2026-10-20T12:15:00+05:30",
+      category: "cards",
+      issue_summary: "Wants information about Millennia credit card reward points.",
+      phone_verified: true,
     });
 
-    expect(result.success).toBe(false);
-    expect(result.isMockedOrPending).toBe(true);
-    expect(result.meetingUrl).toBeUndefined();
-    expect(result.message).toContain("booking_pending");
+    expect(res.success).toBe(true);
+    expect(res.ticket.id).toMatch(/^HDFC-SR-\d{6}$/);
+    expect(res.ticket.customer_name).toBe("Amit Patel");
+    expect(res.ticket.status).toBe("registered");
   });
 
-  it("persists lead and meeting records in store", async () => {
-    const leadRes = await SupabaseService.saveOrUpdateLead({
-      full_name: "Karan Johar",
-      phone: "+919822334455",
-      lead_status: "booking_pending",
-      property_city: "Mumbai",
-      budget_fit: true,
+  it("sanitizes OTP and PIN credentials automatically before storage", async () => {
+    const res = await SupportRequestService.createRequest({
+      customer_name: "Sneha Rao",
+      phone: "+919811223344",
+      issue_summary: "My OTP is 492019 and my ATM PIN is 8492 please help.",
     });
 
-    expect(leadRes.success).toBe(true);
-    expect(leadRes.lead.id).toBeDefined();
+    expect(res.ticket.issue_summary).not.toContain("492019");
+    expect(res.ticket.issue_summary).not.toContain("8492");
+    expect(res.ticket.issue_summary).toContain("[REDACTED_AUTH_SECRET]");
+    expect(res.warning).toBeDefined();
+  });
 
-    const meetRes = await SupabaseService.saveMeeting({
-      lead_id: leadRes.lead.id!,
-      calendar_event_id: null,
-      meeting_url: null,
-      start_time: "2026-10-22T14:00:00+05:30",
-      end_time: "2026-10-22T14:45:00+05:30",
-      timezone: "Asia/Kolkata",
-      booking_status: "pending",
-      notes: "Pending Google Calendar configuration",
+  it("retrieves verified bank knowledge with official helplines", () => {
+    const results = BankKnowledgeService.search("millennia credit card");
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].title).toContain("Millennia");
+
+    const helplines = BankKnowledgeService.getOfficialHelplines();
+    expect(helplines.national_toll_free).toBe("1800 1600");
+    expect(helplines.alternate_toll_free).toBe("1800 2600");
+  });
+
+  it("finds existing requests by ticket ID or phone number", async () => {
+    const res = await SupportRequestService.createRequest({
+      customer_name: "Vikram Malhotra",
+      phone: "+919988776655",
+      issue_summary: "Home loan balance transfer consultation request.",
     });
 
-    expect(meetRes.success).toBe(true);
-    expect(meetRes.meeting.booking_status).toBe("pending");
+    const foundByTicket = SupportRequestService.findByTicketOrPhone(res.ticket.id);
+    expect(foundByTicket.length).toBeGreaterThan(0);
+    expect(foundByTicket[0].id).toBe(res.ticket.id);
+
+    const foundByPhone = SupportRequestService.findByTicketOrPhone("9988776655");
+    expect(foundByPhone.length).toBeGreaterThan(0);
   });
 });
