@@ -145,7 +145,15 @@ export class WorkflowExecutionEngine {
     // NODE 2: AI Agent Node (OpenAI Chat Model + Structured Output Parser)
     // -------------------------------------------------------------
     const aiStart = Date.now();
-    const aiRes = await AIAgentService.processLead(payload, mergedConfig.aiModel.model);
+    const allowSimulation =
+      mergedConfig.aiModel.provider === "mock_manual" ||
+      (config as Record<string, unknown>)?.simulate === true;
+
+    const aiRes = await AIAgentService.processLead(
+      payload,
+      mergedConfig.aiModel.model,
+      allowSimulation
+    );
 
     if (!aiRes.success || !aiRes.structuredOutput) {
       logs.push({

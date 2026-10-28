@@ -23,13 +23,14 @@ import {
   CalendarCheck,
   Building,
   MessageSquare,
-  FileDown,
+  UserCheck,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { Lead } from "@/types";
-import { VAPI_ASSISTANT_CONFIG } from "@/config/tisha-system-prompt";
 
 type CallStatus = "ready" | "connecting" | "listening" | "thinking" | "speaking" | "ended";
+type PhoneTab = "call" | "book" | "status" | "transcript" | "info";
 
 export default function VoiceConsultationPage() {
   const [callStatus, setCallStatus] = useState<CallStatus>("ready");
@@ -50,8 +51,24 @@ export default function VoiceConsultationPage() {
   const [inputSlot, setInputSlot] = useState("11:30 AM");
   const [inputNotes, setInputNotes] = useState("");
 
+  // User-Safe Status Lookup State (Only sees their own consultation)
+  const [statusSearchPhone, setStatusSearchPhone] = useState("");
+  const [myAppointment, setMyAppointment] = useState<{
+    appointmentId?: string;
+    clientName?: string;
+    phone?: string;
+    propertyType?: string;
+    cityLocation?: string;
+    projectScope?: string;
+    consultationDateTime?: string;
+    status?: string;
+    googleMeetUrl?: string | null;
+  } | null>(null);
+  const [isSearchingStatus, setIsSearchingStatus] = useState(false);
+  const [statusSearchResult, setStatusSearchResult] = useState<string | null>(null);
+
   // Tab in Phone UI
-  const [phoneTab, setPhoneTab] = useState<"call" | "book" | "transcript" | "info">("call");
+  const [phoneTab, setPhoneTab] = useState<PhoneTab>("call");
   const [currentTime, setCurrentTime] = useState("12:00 PM");
 
   useEffect(() => {
@@ -101,11 +118,11 @@ export default function VoiceConsultationPage() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Start Vapi Call
   const startVoiceCall = useCallback(async () => {
     setErrorMessage(null);
     setBookingSuccessMsg(null);
     setCallStatus("connecting");
-    setCallDuration(0);
 
     const publicKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
     const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
@@ -122,8 +139,8 @@ export default function VoiceConsultationPage() {
       setMessages([introMsg]);
 
       if ("speechSynthesis" in window) {
-        const utter = new SpeechSynthesisUtterance("Hello, welcome to Studio Olives Cre. May I know your name please?");
-        utter.rate = 0.95;
+        const utter = new SpeechSynthesisUtterance("Namaste! Studio Olives Cre mein aapka swagat hai. Main Tisha hoon.");
+        utter.rate = 0.9;
         utter.onend = () => setCallStatus("listening");
         window.speechSynthesis.speak(utter);
       } else {
@@ -145,7 +162,7 @@ export default function VoiceConsultationPage() {
           {
             id: `msg-${Date.now()}`,
             role: "assistant",
-            text: "नमस्ते जी, मैं तिशा बोल रही हूँ, स्टूडियो ऑलिव्स क्री से। आपका नाम जान सकती हूँ?",
+            text: "नमस्ते! स्टूडियो ऑलिव्स क्री में आपका स्वागत है। मैं तिशा हूँ। आपका नाम जान सकती हूँ?",
             time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
@@ -178,64 +195,48 @@ export default function VoiceConsultationPage() {
             ]);
 
             // Real-time slot and name detection
-            if (role === "user" && !lead.full_name) {
-              setLead((prev) => ({ ...prev, full_name: transcript.replace(/my name is|i am|mera naam/i, "").trim() }));
+            if (transcript.toLowerCase().includes("meet.google.com")) {
+              const match = transcript.match(/https:\/\/meet\.google\.com\/[a-z0-9-]+/i);
+              if (match) {
+                setActiveMeetingUrl(match[0]);
+                setBookingSuccessMsg(`Consultation confirmed! Google Meet URL generated.`);
+              }
             }
           }
         }
+      });
 
-        if (message.type === "function-call-result" || message.type === "tool-call-result") {
-          const result = (message.result || {}) as Record<string, unknown>;
-          if (result.meeting_url) {
-            setActiveMeetingUrl(result.meeting_url as string);
-            setBookingSuccessMsg(`Consultation confirmed! Google Meet URL generated and saved into Excel.`);
-          }
+      vapi.on("error", (err: unknown) => {
+        console.error("Vapi call notice:", err);
+        const errObj = err as Record<string, unknown>;
+        const errType = (errObj?.error as Record<string, unknown>)?.type || errObj?.type;
+        // Daily teardown events are normal on end
+        if (errType === "daily-error" || errType === "ejected") {
+          setCallStatus("ended");
+          return;
         }
+        setErrorMessage("Connection refreshed. Tap Call to reconnect.");
+        setCallStatus("ended");
       });
 
       vapi.on("call-end", () => {
         setCallStatus("ended");
       });
 
-      vapi.on("error", (err: unknown) => {
-        const errObj = err as Record<string, any>;
-        const msg =
-          errObj?.error?.message?.msg ||
-          errObj?.error?.errorMsg ||
-          errObj?.message?.msg ||
-          (err instanceof Error ? err.message : "");
-
-        if (
-          msg === "Exiting meeting because room was deleted" ||
-          msg === "Meeting has ended" ||
-          errObj?.type === "daily-error" ||
-          errObj?.type === "daily-call-join-error"
-        ) {
-          setCallStatus("ended");
-          return;
-        }
-
-        console.error("Vapi call error:", err);
-        setErrorMessage(typeof msg === "string" && msg ? msg : "Voice session ended.");
-        setCallStatus("ready");
-      });
-
-      // Start call with configured assistant ID or transient configuration
-      if (assistantId && !assistantId.includes("your_vapi_assistant_id")) {
+      // Start call with configured assistant ID
+      if (assistantId && !assistantId.includes("your_assistant_id")) {
         await vapi.start(assistantId);
       } else {
-        await vapi.start(VAPI_ASSISTANT_CONFIG as any);
+        await vapi.start();
       }
     } catch (err: unknown) {
-      console.error("Failed to start Vapi session:", err);
-      setErrorMessage(
-        err instanceof Error ? err.message : "Microphone permission denied or unable to reach Vapi services."
-      );
+      console.error("Failed to start call:", err);
+      setErrorMessage("Could not start audio call. Please check microphone permissions.");
       setCallStatus("ready");
     }
-  }, [lead.full_name]);
+  }, []);
 
-  const endCall = useCallback(() => {
+  const endVoiceCall = useCallback(() => {
     if (vapiRef.current) {
       vapiRef.current.stop();
     }
@@ -286,21 +287,63 @@ export default function VoiceConsultationPage() {
         setActiveMeetingUrl(data.meetingUrl);
       }
 
+      const confirmedRecord = {
+        appointmentId: data.appointmentId || `APT-${Date.now().toString().slice(-6)}`,
+        clientName: inputName.trim() || "Private Luxury Client",
+        phone: inputPhone.trim(),
+        propertyType: "Luxury Residence / Penthouse",
+        cityLocation: "Delhi NCR",
+        projectScope: inputNotes.trim() || "Turnkey Luxury Architecture & Interiors",
+        consultationDateTime: `${inputDate} at ${inputSlot} IST`,
+        status: "CONFIRMED",
+        googleMeetUrl: data.meetingUrl || null,
+      };
+
+      setMyAppointment(confirmedRecord);
+      setStatusSearchPhone(inputPhone.trim());
+
       setBookingSuccessMsg(
-        `Appointment successfully recorded for ${inputPhone}! Added to the Studio Olives Cre Excel spreadsheet for our design partners.`
+        `Consultation confirmed for ${inputPhone}! Ref ID: #${confirmedRecord.appointmentId}. Our senior design team will connect with you.`
       );
-      setPhoneTab("call");
+      setPhoneTab("status");
     } catch (err: unknown) {
       console.error("Booking error:", err);
-      setErrorMessage("Could not record appointment. Please try again.");
+      setErrorMessage("Could not submit consultation request. Please try again.");
     } finally {
       setIsSubmittingBooking(false);
     }
   };
 
+  // User-Safe Status Search: Only returns THAT client's appointment
+  const handleCheckMyAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!statusSearchPhone || statusSearchPhone.trim().length < 5) {
+      setStatusSearchResult("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
+    setIsSearchingStatus(true);
+    setStatusSearchResult(null);
+    try {
+      const res = await fetch(`/api/user/my-appointment?phone=${encodeURIComponent(statusSearchPhone.trim())}`);
+      const data = await res.json();
+      if (data.found && data.appointments?.length > 0) {
+        setMyAppointment(data.appointments[0]);
+        setStatusSearchResult(null);
+      } else {
+        setMyAppointment(null);
+        setStatusSearchResult("No consultation found for this number. You can book an appointment with Tisha anytime.");
+      }
+    } catch {
+      setStatusSearchResult("Could not connect to concierge server. Please try again.");
+    } finally {
+      setIsSearchingStatus(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#111317] text-neutral-100 flex flex-col justify-between py-6 px-4 font-sans select-none">
-      {/* Top Brand Navbar */}
+      {/* Top Brand Navbar — Clean & Client-Exclusive (No Internal Admin Links) */}
       <header className="max-w-5xl w-full mx-auto flex items-center justify-between pb-6 border-b border-neutral-800/80">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-[#18191A] border border-[#C5A059]/40 flex items-center justify-center text-[#DFC085] font-serif font-bold text-sm shadow-md">
@@ -316,30 +359,16 @@ export default function VoiceConsultationPage() {
           </div>
         </div>
 
+        {/* Client Luxury Indicators */}
         <div className="flex items-center gap-3 text-xs">
-          <Link
-            href="/workflow"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-700 bg-neutral-800/60 hover:bg-neutral-800 text-neutral-300 transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Workflow Studio</span>
-          </Link>
-          <Link
-            href="/admin"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-700 bg-neutral-800/60 hover:bg-neutral-800 text-neutral-300 transition-colors"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059]" />
-            <span>Staff Portal (Excel Access)</span>
-          </Link>
-          <a
-            href="/api/admin/export-excel"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-semibold transition-colors shadow-sm"
-          >
-            <FileDown className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Export Excel</span>
-          </a>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-800/80 border border-neutral-700/80 text-neutral-300 text-[11px]">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Delhi NCR Atelier • ₹5 Cr+ Projects</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#C5A059]/30 bg-[#C5A059]/10 text-[#DFC085] font-semibold text-[11px]">
+            <Sparkles className="w-3.5 h-3.5 text-[#C5A059]" />
+            <span>Tisha: AI Luxury Coordinator</span>
+          </div>
         </div>
       </header>
 
@@ -358,209 +387,211 @@ export default function VoiceConsultationPage() {
             <span>{currentTime}</span>
             <div className="flex items-center gap-2">
               <Signal className="w-3 h-3" />
-              <Wifi className="w-3 h-3 text-emerald-400" />
-              <Battery className="w-4 h-4 text-emerald-400" />
+              <Wifi className="w-3 h-3" />
+              <Battery className="w-3.5 h-3.5" />
             </div>
           </div>
 
-          {/* Phone Screen Display Body */}
-          <div className="flex-1 flex flex-col bg-gradient-to-b from-[#141822] to-[#0A0C12] rounded-[36px] p-5 overflow-hidden relative border border-white/5">
-            {/* Screen Header */}
-            <div className="text-center pt-2 pb-3">
-              <span className="text-[10px] tracking-widest uppercase font-semibold text-[#C5A059] block">
-                STUDIO OLIVES CRE
+          {/* Phone Screen Inner Display */}
+          <div className="flex-1 flex flex-col justify-between px-4 py-2 overflow-hidden z-10">
+            {/* Caller Header Card */}
+            <div className="text-center pt-2">
+              <span className="text-[10px] uppercase tracking-[0.25em] text-[#C5A059] font-medium block">
+                Studio Olives Cre
               </span>
-              <h2 className="font-serif text-lg font-bold text-white mt-0.5">Tisha</h2>
-              <p className="text-[11px] text-neutral-400">Luxury Consultation Coordinator</p>
+              <h1 className="font-serif text-2xl font-bold tracking-tight text-white mt-0.5">
+                Tisha
+              </h1>
+              <p className="text-xs text-neutral-400 font-light mt-0.5">
+                Luxury Consultation Coordinator
+              </p>
 
-              {/* Live Status indicator */}
-              <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono">
+              {/* Call Status Pill */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 mt-2 text-[11px]">
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    callStatus === "listening"
+                    callStatus === "speaking"
                       ? "bg-emerald-400 animate-ping"
-                      : callStatus === "speaking"
-                      ? "bg-[#C5A059] animate-bounce"
+                      : callStatus === "listening"
+                      ? "bg-cyan-400 animate-pulse"
                       : callStatus === "connecting"
-                      ? "bg-amber-400 animate-pulse"
+                      ? "bg-amber-400 animate-bounce"
                       : "bg-neutral-500"
                   }`}
                 />
-                <span className="text-neutral-300">
-                  {callStatus === "ready" && "Ready to Connect"}
-                  {callStatus === "connecting" && "Calling Tisha..."}
-                  {callStatus === "listening" && `Connected (${formatTimer(callDuration)})`}
-                  {callStatus === "speaking" && `Tisha Speaking...`}
-                  {callStatus === "ended" && "Call Finished"}
+                <span className="capitalize font-mono text-neutral-300">
+                  {callStatus === "ready"
+                    ? "Ready to Connect"
+                    : callStatus === "connecting"
+                    ? "Dialing Atelier..."
+                    : callStatus === "speaking"
+                    ? "Tisha Speaking"
+                    : callStatus === "listening"
+                    ? "Listening to You"
+                    : callStatus === "ended"
+                    ? "Call Ended"
+                    : "Connecting"}
                 </span>
+                {callStatus !== "ready" && callStatus !== "ended" && (
+                  <span className="text-neutral-500 font-mono ml-1">
+                    ({formatTimer(callDuration)})
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Notification alert banners */}
-            {bookingSuccessMsg && (
-              <div className="my-2 p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-[11px] leading-relaxed flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="font-semibold">{bookingSuccessMsg}</p>
-                  {activeMeetingUrl && (
-                    <a
-                      href={activeMeetingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-emerald-200 underline mt-1 font-mono text-[10px]"
-                    >
-                      <span>Join Google Meet</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-
+            {/* Error & Success Toasts */}
             {errorMessage && (
-              <div className="my-2 p-2.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-300 text-[11px] flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                <p className="flex-1">{errorMessage}</p>
+              <div className="bg-red-950/80 border border-red-500/40 text-red-200 text-xs p-2.5 rounded-xl flex items-center gap-2 mt-2">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <p className="text-[11px] leading-tight">{errorMessage}</p>
               </div>
             )}
 
-            {/* Screen Content Tabs */}
+            {bookingSuccessMsg && (
+              <div className="bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 text-xs p-2.5 rounded-xl flex items-center gap-2 mt-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <p className="text-[11px] leading-tight">{bookingSuccessMsg}</p>
+              </div>
+            )}
+
+            {/* TAB 1: Voice Call Center Visualizer */}
             {phoneTab === "call" && (
-              <div className="flex-1 flex flex-col items-center justify-center my-auto space-y-6">
-                {/* Caller Avatar / Waveform Orb */}
-                <div className="relative">
-                  {callStatus === "speaking" && (
-                    <div className="absolute -inset-4 rounded-full bg-[#C5A059]/20 animate-ping" />
-                  )}
-                  {callStatus === "listening" && (
-                    <div className="absolute -inset-3 rounded-full bg-emerald-500/20 animate-pulse" />
-                  )}
-
-                  <div className="relative w-32 h-32 rounded-full bg-gradient-to-tr from-[#1B2232] to-[#2B354D] border-2 border-[#C5A059]/40 flex flex-col items-center justify-center shadow-xl">
-                    <span className="font-serif text-3xl font-bold text-[#DFC085]">T</span>
-                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider font-semibold mt-1">
-                      Naraina Vihar
-                    </span>
+              <div className="flex-1 flex flex-col items-center justify-center my-auto">
+                {/* AI Breathing Glow Ring */}
+                <div className="relative flex items-center justify-center">
+                  <div
+                    className={`absolute w-40 h-40 rounded-full transition-all duration-700 ${
+                      callStatus === "speaking"
+                        ? "bg-emerald-500/20 scale-125 blur-xl"
+                        : callStatus === "listening"
+                        ? "bg-cyan-500/20 scale-110 blur-lg"
+                        : "bg-[#C5A059]/10 scale-95 blur-md"
+                    }`}
+                  />
+                  <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-[#141824] to-[#1F2637] border-2 border-[#C5A059]/50 shadow-[0_0_30px_rgba(197,160,89,0.3)] flex items-center justify-center z-10">
+                    <div className="w-20 h-20 rounded-full bg-[#18191A] flex flex-col items-center justify-center">
+                      <span className="font-serif text-2xl font-bold text-[#DFC085]">T</span>
+                      <span className="text-[8px] uppercase tracking-widest text-neutral-400">Naraina Vihar</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="text-center px-4">
-                  <p className="text-xs text-neutral-300 leading-relaxed font-light">
-                    &ldquo;Speak naturally in Hindi or English. Tisha qualifies your vision and schedules an appointment.&rdquo;
-                  </p>
-                </div>
+                <p className="text-center text-xs text-neutral-400 max-w-[240px] mt-6 font-light leading-relaxed">
+                  {callStatus === "ready"
+                    ? "“Speak naturally in Hindi or English. Tisha qualifies your vision and schedules an appointment.”"
+                    : callStatus === "listening"
+                    ? "Go ahead, tell Tisha about your luxury property requirements..."
+                    : callStatus === "speaking"
+                    ? "Tisha is responding with bespoke consultation guidance..."
+                    : "Call completed. You can book an appointment anytime below."}
+                </p>
 
-                {/* In-Call Audio Controls */}
-                {callStatus !== "ready" && callStatus !== "ended" ? (
-                  <div className="flex items-center gap-6">
-                    <button
-                      onClick={toggleMute}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center border transition-all ${
-                        isMuted
-                          ? "bg-rose-500/20 text-rose-400 border-rose-500/40"
-                          : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-                      }`}
-                      title={isMuted ? "Unmute" : "Mute"}
-                    >
-                      {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                    </button>
-
-                    <button
-                      onClick={endCall}
-                      className="w-16 h-16 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center shadow-lg transition-transform active:scale-95"
-                      title="End Call"
-                    >
-                      <PhoneOff className="w-7 h-7" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
+                {/* Call Action Controls */}
+                <div className="flex items-center gap-6 mt-6">
+                  {callStatus === "ready" || callStatus === "ended" ? (
                     <button
                       onClick={startVoiceCall}
-                      className="w-20 h-20 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex flex-col items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+                      className="w-16 h-16 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-transform hover:scale-105 active:scale-95"
+                      title="Start Voice Call with Tisha"
                     >
-                      <Phone className="w-8 h-8 fill-current" />
-                      <span className="text-[10px] uppercase font-bold tracking-wider mt-1">Call</span>
+                      <Phone className="w-7 h-7" />
                     </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={toggleMute}
+                        className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${
+                          isMuted
+                            ? "bg-red-950/80 border-red-500 text-red-300"
+                            : "bg-white/10 border-white/20 text-white hover:bg-white/20"
+                        }`}
+                        title={isMuted ? "Unmute" : "Mute"}
+                      >
+                        {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                      </button>
 
-                    <button
-                      onClick={() => setPhoneTab("book")}
-                      className="text-xs text-[#DFC085] hover:underline flex items-center gap-1 font-medium mt-1 cursor-pointer"
-                    >
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>Book by Phone Number directly</span>
-                    </button>
-                  </div>
-                )}
+                      <button
+                        onClick={endVoiceCall}
+                        className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-[0_0_25px_rgba(239,68,68,0.4)] transition-transform hover:scale-105 active:scale-95"
+                        title="End Call"
+                      >
+                        <PhoneOff className="w-7 h-7" />
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    onClick={() => setPhoneTab("book")}
+                    className="text-[11px] text-[#C5A059] hover:underline flex items-center gap-1 font-medium"
+                  >
+                    <Calendar className="w-3.5 h-3.5" /> Book Consultation by Phone
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Direct Phone Booking Tab */}
+            {/* TAB 2: Direct Appointment Booking Form */}
             {phoneTab === "book" && (
-              <div className="flex-1 overflow-y-auto pr-1 space-y-3 pt-2 text-xs">
-                <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-                  <span className="font-semibold text-white flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-[#C5A059]" />
-                    Book Consultation
-                  </span>
-                  <button
-                    onClick={() => setPhoneTab("call")}
-                    className="text-[10px] text-neutral-400 hover:text-white"
-                  >
+              <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 pt-2 text-xs">
+                <div className="flex items-center justify-between pb-1 border-b border-neutral-800">
+                  <span className="font-semibold text-white">Book Luxury Consultation</span>
+                  <button onClick={() => setPhoneTab("call")} className="text-[10px] text-neutral-400 hover:text-white">
                     Back to Call
                   </button>
                 </div>
 
-                <form onSubmit={handleDirectPhoneBooking} className="space-y-3">
+                <form onSubmit={handleDirectPhoneBooking} className="space-y-2">
                   <div>
                     <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold block mb-1">
-                      Phone Number (Required)
+                      Full Name *
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. Vikram Malhotra"
+                      value={inputName}
+                      onChange={(e) => setInputName(e.target.value)}
                       required
-                      placeholder="+91 93075 12816"
-                      value={inputPhone}
-                      onChange={(e) => setInputPhone(e.target.value)}
-                      className="w-full bg-[#11151F] border border-neutral-700 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-none focus:ring-1 focus:ring-[#C5A059]"
+                      className="w-full bg-[#11151F] border border-neutral-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#C5A059]"
                     />
                   </div>
 
                   <div>
                     <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold block mb-1">
-                      Full Name
+                      Mobile Number (India +91) *
                     </label>
                     <input
-                      type="text"
+                      type="tel"
+                      placeholder="+91 98110 02233"
+                      value={inputPhone}
+                      onChange={(e) => setInputPhone(e.target.value)}
                       required
-                      placeholder="e.g. Vikram Malhotra"
-                      value={inputName}
-                      onChange={(e) => setInputName(e.target.value)}
-                      className="w-full bg-[#11151F] border border-neutral-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#C5A059]"
+                      className="w-full bg-[#11151F] border border-neutral-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-none focus:ring-1 focus:ring-[#C5A059]"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold block mb-1">
-                        Date
+                        Preferred Date
                       </label>
                       <input
                         type="date"
-                        required
                         value={inputDate}
                         onChange={(e) => setInputDate(e.target.value)}
-                        className="w-full bg-[#11151F] border border-neutral-700 rounded-xl px-2 py-2 text-white text-[11px]"
+                        className="w-full bg-[#11151F] border border-neutral-700 rounded-xl px-2.5 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#C5A059]"
                       />
                     </div>
                     <div>
                       <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold block mb-1">
-                        Slot
+                        Time Slot
                       </label>
                       <select
                         value={inputSlot}
                         onChange={(e) => setInputSlot(e.target.value)}
-                        className="w-full bg-[#11151F] border border-neutral-700 rounded-xl px-2 py-2 text-white text-[11px]"
+                        className="w-full bg-[#11151F] border border-neutral-700 rounded-xl px-2 py-2 text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#C5A059]"
                       >
                         <option value="11:30 AM">11:30 AM IST</option>
                         <option value="03:30 PM">03:30 PM IST</option>
@@ -571,7 +602,20 @@ export default function VoiceConsultationPage() {
 
                   <div>
                     <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold block mb-1">
-                      Email Address (For Google Meet Link)
+                      Property & Scope Notes
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="e.g. 8,000 sq ft Luxury Villa, Chhatarpur Delhi (Budget ₹6 Cr+)"
+                      value={inputNotes}
+                      onChange={(e) => setInputNotes(e.target.value)}
+                      className="w-full bg-[#11151F] border border-neutral-700 rounded-xl px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#C5A059]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold block mb-1">
+                      Email Address (Optional)
                     </label>
                     <input
                       type="email"
@@ -588,13 +632,79 @@ export default function VoiceConsultationPage() {
                     className="w-full py-2.5 rounded-xl bg-[#C5A059] hover:bg-[#DFC085] text-neutral-950 font-bold uppercase tracking-wider text-xs transition-colors flex items-center justify-center gap-1.5 shadow-md mt-2"
                   >
                     <CalendarCheck className="w-4 h-4" />
-                    <span>{isSubmittingBooking ? "Saving Appointment..." : "Confirm & Save to Excel"}</span>
+                    <span>{isSubmittingBooking ? "Confirming..." : "Request Luxury Consultation"}</span>
                   </button>
                 </form>
               </div>
             )}
 
-            {/* Live Dialogue Transcript Inside Phone Screen */}
+            {/* TAB 3: User's Own Consultation Status (Strictly Isolated Client View) */}
+            {phoneTab === "status" && (
+              <div className="flex-1 overflow-y-auto pr-1 space-y-3 pt-2 text-xs">
+                <div className="flex items-center justify-between pb-1 border-b border-neutral-800">
+                  <span className="font-semibold text-white">My Consultation Status</span>
+                  <button onClick={() => setPhoneTab("call")} className="text-[10px] text-neutral-400 hover:text-white">
+                    Close
+                  </button>
+                </div>
+
+                {/* Search Bar for Client lookup */}
+                <form onSubmit={handleCheckMyAppointment} className="flex gap-1.5">
+                  <input
+                    type="tel"
+                    placeholder="Enter phone: +91 98110..."
+                    value={statusSearchPhone}
+                    onChange={(e) => setStatusSearchPhone(e.target.value)}
+                    className="flex-1 bg-[#11151F] border border-neutral-700 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-none focus:ring-1 focus:ring-[#C5A059]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSearchingStatus}
+                    className="px-3 py-2 bg-[#C5A059] hover:bg-[#DFC085] text-neutral-950 rounded-xl font-semibold flex items-center justify-center"
+                    title="Search my booking"
+                  >
+                    <Search className={`w-3.5 h-3.5 ${isSearchingStatus ? "animate-spin" : ""}`} />
+                  </button>
+                </form>
+
+                {statusSearchResult && (
+                  <p className="text-[11px] text-amber-300/90 bg-amber-950/40 border border-amber-800/40 p-2.5 rounded-xl">
+                    {statusSearchResult}
+                  </p>
+                )}
+
+                {myAppointment ? (
+                  <div className="bg-gradient-to-b from-[#181D2A] to-[#10141E] border border-[#C5A059]/40 rounded-2xl p-3.5 space-y-2.5 shadow-lg">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                      <span className="text-[10px] uppercase tracking-wider text-[#DFC085] font-semibold">
+                        Ref #{myAppointment.appointmentId || "SOC-CONFIRMED"}
+                      </span>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                        {myAppointment.status || "CONFIRMED"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 text-[11px] text-neutral-200">
+                      <p><strong>Client:</strong> {myAppointment.clientName}</p>
+                      <p><strong>Contact:</strong> {myAppointment.phone}</p>
+                      <p><strong>Consultation:</strong> {myAppointment.consultationDateTime}</p>
+                      <p><strong>Scope:</strong> {myAppointment.projectScope}</p>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/10 text-[10px] text-neutral-400">
+                      <p>Our senior architectural partners will review your floor plans during this consultation.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-neutral-500 text-[11px] space-y-2">
+                    <UserCheck className="w-8 h-8 text-neutral-600 mx-auto" />
+                    <p>Enter your mobile number above to look up your scheduled consultation.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 4: Live Dialogue Transcript Inside Phone Screen */}
             {phoneTab === "transcript" && (
               <div ref={chatScrollRef} className="flex-1 overflow-y-auto pr-1 space-y-2 pt-2 text-xs font-sans">
                 <div className="flex items-center justify-between pb-1 border-b border-neutral-800">
@@ -630,20 +740,20 @@ export default function VoiceConsultationPage() {
               </div>
             )}
 
-            {/* Brand & Project Info */}
+            {/* TAB 5: Brand & Studio Info */}
             {phoneTab === "info" && (
               <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 pt-2 text-xs">
                 <div className="flex items-center justify-between pb-1 border-b border-neutral-800">
-                  <span className="font-semibold text-white">Studio Olives Cre Facts</span>
+                  <span className="font-semibold text-white">Studio Olives Cre Atelier</span>
                   <button onClick={() => setPhoneTab("call")} className="text-[10px] text-neutral-400 hover:text-white">
                     Close
                   </button>
                 </div>
-                <div className="bg-white/5 p-2.5 rounded-xl text-[11px] space-y-1 text-neutral-300">
+                <div className="bg-white/5 p-2.5 rounded-xl text-[11px] space-y-1.5 text-neutral-300">
                   <p><strong>Headquarters:</strong> E-39 Naraina Vihar, New Delhi</p>
                   <p><strong>Established:</strong> 2016 (75+ Architects & Engineers)</p>
                   <p><strong>Portfolio:</strong> 50+ luxury projects across India & UAE</p>
-                  <p><strong>Flagship:</strong> 6,000 sq ft penthouse for Hardik Pandya</p>
+                  <p><strong>Flagship:</strong> 6,000 sq ft bespoke penthouse for Hardik Pandya</p>
                   <p><strong>Investment:</strong> Projects start from ₹5 Crore</p>
                 </div>
               </div>
@@ -669,6 +779,16 @@ export default function VoiceConsultationPage() {
               >
                 <Calendar className="w-4 h-4" />
                 <span>Book</span>
+              </button>
+
+              <button
+                onClick={() => setPhoneTab("status")}
+                className={`flex flex-col items-center gap-1 transition-colors ${
+                  phoneTab === "status" ? "text-blue-400 font-semibold" : "hover:text-white"
+                }`}
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>My Status</span>
               </button>
 
               <button
@@ -698,9 +818,17 @@ export default function VoiceConsultationPage() {
         </div>
       </main>
 
-      {/* Footer Instructions */}
-      <footer className="text-center text-xs text-neutral-500 py-2">
-        <span>Studio Olives Cre • Every consultation is automatically written to the shared Excel file for staff review.</span>
+      {/* Footer — Elegant Luxury Studio with Discreet Staff Access Link */}
+      <footer className="text-center text-xs text-neutral-500 py-2 flex items-center justify-center gap-3">
+        <span>Studio Olives Cre • Architecture & Luxury Interiors • Delhi NCR & UAE</span>
+        <span className="text-neutral-700">•</span>
+        <Link
+          href="/admin"
+          className="text-neutral-600 hover:text-neutral-400 text-[11px] transition-colors"
+          title="Internal Staff & Management Access"
+        >
+          Staff Portal
+        </Link>
       </footer>
     </div>
   );

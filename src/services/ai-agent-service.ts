@@ -6,6 +6,7 @@ export interface AIAgentResult {
   rawText?: string;
   modelUsed: string;
   error?: string;
+  isSimulated?: boolean;
 }
 
 export class AIAgentService {
@@ -40,11 +41,18 @@ Do NOT enclose in markdown backticks or any introductory text. Return raw JSON o
   /**
    * Run AI Agent on incoming webhook payload
    */
-  static async processLead(payload: WebhookPayload, configModel?: string): Promise<AIAgentResult> {
+  static async processLead(
+    payload: WebhookPayload,
+    configModel?: string,
+    allowSimulation: boolean = false
+  ): Promise<AIAgentResult> {
     const apiKey = process.env.OPENAI_API_KEY;
     const model = configModel || process.env.OPENAI_MODEL || "gpt-4o";
 
     if (!apiKey || apiKey.includes("your_openai_api_key")) {
+      if (allowSimulation) {
+        return this.simulateStructuredLead(payload, model);
+      }
       return {
         success: false,
         modelUsed: model,
@@ -111,11 +119,52 @@ Do NOT enclose in markdown backticks or any introductory text. Return raw JSON o
   }
 
   /**
+   * Deterministic local demonstration engine
+   * Only executes when explicit simulation mode is enabled for live presentations
+   */
+  public static simulateStructuredLead(payload: WebhookPayload, model: string): AIAgentResult {
+    const budgetMatch = (payload.budget || payload.message).match(/(\d+(\.\d+)?)/);
+    const budgetVal = budgetMatch ? parseFloat(budgetMatch[1]) : 8.5;
+    const isQualified = budgetVal >= 5.0;
+
+    const property = payload.propertyType || "Luxury Villa";
+    const name = payload.name || "Kabir Oberoi";
+    const phone = payload.phone || "+919811223344";
+    const email = payload.email || "kabir@oberoienterprises.in";
+
+    const simulated: AIStructuredOutput = {
+      lead_name: name,
+      phone,
+      email,
+      property_type: property,
+      project_scope: "Turnkey Architecture & Luxury Interiors",
+      estimated_budget_cr: budgetVal,
+      budget_qualified: isQualified,
+      priority_level: isQualified ? "high" : "low",
+      aesthetic_style: "Contemporary Luxury & Natural Stone Finishes",
+      summary: `${property} inquiry with an estimated budget of ₹${budgetVal} Crore. ${
+        isQualified ? "Meets Studio Olives Cre ₹5 Cr luxury qualification threshold." : "Below standard ₹5 Cr qualification threshold."
+      }`,
+      recommended_action: isQualified
+        ? "Schedule direct online design consultation with senior partners."
+        : "Refer to bespoke advisory catalog or follow up.",
+      whatsapp_notification_text: `VIP Client Qualified: ${name} (${property}, ₹${budgetVal} Cr). Ready for partner review.`,
+    };
+
+    return {
+      success: true,
+      structuredOutput: simulated,
+      rawText: JSON.stringify(simulated, null, 2),
+      modelUsed: `${model} (Presentation Simulation Mode)`,
+      isSimulated: true,
+    };
+  }
+
+  /**
    * Validates & parses AI output against schema
    */
   static parseStructuredOutput(rawText: string): { success: boolean; data?: AIStructuredOutput; error?: string } {
     try {
-      // Clean up potential markdown formatting codeblocks
       const cleaned = rawText
         .trim()
         .replace(/^```json\s*/i, "")

@@ -7,6 +7,30 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const format = searchParams.get("format") || "download";
 
+    // Strict Admin Authorization Check
+    const authHeader = request.headers.get("authorization");
+    const queryToken = searchParams.get("token");
+    const configuredPassword = process.env.ADMIN_PASSWORD || "studio-olives-cre-2026";
+
+    let isAuthorized = false;
+    if (authHeader) {
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      if (token === configuredPassword) isAuthorized = true;
+    }
+    if (queryToken && queryToken === configuredPassword) {
+      isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      return Response.json(
+        {
+          error: "Unauthorized",
+          message: "Internal staff credentials are required to export the Studio Olives Cre client database.",
+        },
+        { status: 401 }
+      );
+    }
+
     const filePath = ExcelService.getExcelFilePath();
     const rows = ExcelService.getAllAppointments();
 
@@ -28,7 +52,7 @@ export async function GET(request: Request) {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition":
-          'attachment; filename="studio_olives_cre_appointments.xlsx"',
+          'attachment; filename="studio_olives_cre_master_appointments.xlsx"',
         "Cache-Control": "no-store, max-age=0",
       },
     });

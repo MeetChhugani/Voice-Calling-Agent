@@ -29,6 +29,7 @@ export default function AutomationWorkflowPage() {
   const [executionResult, setExecutionResult] = useState<WorkflowExecutionResult | null>(null);
   const [recentRecords, setRecentRecords] = useState<Record<string, string>[]>([]);
   const [recordsCount, setRecordsCount] = useState<number>(0);
+  const [simulationMode, setSimulationMode] = useState<boolean>(true);
 
   const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfig>({
     aiModel: {
@@ -106,7 +107,10 @@ export default function AutomationWorkflowPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           payload: testPayload,
-          config: workflowConfig,
+          config: {
+            ...workflowConfig,
+            simulate: simulationMode,
+          },
         }),
       });
 
@@ -159,17 +163,29 @@ export default function AutomationWorkflowPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-3 text-xs">
+            <button
+              onClick={() => setSimulationMode((prev) => !prev)}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                simulationMode
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                  : "border-neutral-700 bg-neutral-800/60 text-neutral-400"
+              }`}
+              title="Toggle between Presentation Demo Mode and live OpenAI API Key requirement"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{simulationMode ? "Demo Mode: ON (All Green)" : "Demo Mode: OFF (Live Key)"}</span>
+            </button>
+
             <Link
               href="/"
               className="text-neutral-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Voice Agent</span>
+              <span>Client View</span>
             </Link>
             <Link
               href="/admin"
-              className="text-neutral-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5 border border-neutral-700/60 px-3 py-1.5 rounded-lg"
+              className="text-neutral-300 hover:text-emerald-400 transition-colors flex items-center gap-1.5 border border-neutral-700/60 bg-neutral-800/40 px-3 py-1.5 rounded-lg"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span>Staff Portal</span>
