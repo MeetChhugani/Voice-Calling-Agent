@@ -49,7 +49,7 @@ export default function AutomationWorkflowPage() {
     notification: {
       channel: "whatsapp",
       recipient: "+919307512816",
-      messageTemplate: "Hello {{lead_name}}, your luxury consultation enquiry has been qualified.",
+      messageTemplate: "HDFC Bank request received for {{lead_name}}. Our team will review your service request.",
       dryRun: true,
     },
   });
@@ -81,15 +81,12 @@ export default function AutomationWorkflowPage() {
     setIsExecuting(true);
 
     const testPayload = payload || {
-      name: "Rohit Dhawan",
+      name: "Meera Sharma",
       phone: "+919307512816",
-      email: "rohit@dhawan.com",
-      propertyType: "Penthouse",
-      budget: "6 Cr",
-      timeline: "Within 2 months",
-      message:
-        "Need contemporary luxury interior concepts and bespoke Italian marble work for our 6,000 sq ft penthouse in Gurgaon. Budget is approximately ₹6 Cr.",
-      channel: "web",
+      email: "meera@example.com",
+      propertyType: "Credit card support",
+      message: "I need help understanding my credit card statement.",
+      channel: "call",
     };
 
     // Animate statuses to "running" sequentially
@@ -158,7 +155,7 @@ export default function AutomationWorkflowPage() {
                 </span>
               </div>
               <span className="text-[10px] text-neutral-400 tracking-wider block font-medium">
-                Studio Olives Cre • Ingestion, AI Qualification, Spreadsheets & Alerts
+                HDFC Bank • Request Ingestion, Classification, Spreadsheets & Alerts
               </span>
             </div>
           </div>
@@ -203,7 +200,7 @@ export default function AutomationWorkflowPage() {
               Webhook &rarr; AI Agent &rarr; Filter &rarr; Append Row &rarr; Notification Pipeline
             </h1>
             <p className="text-xs text-neutral-400 max-w-3xl leading-relaxed">
-              Fully decoupled automation architecture. Operates with local development adapters (local CSV file append, dry-run WhatsApp notifications) without requiring Google Cloud Console login, while remaining ready for live Google Sheets and Twilio credentials.
+              Request automation workflow. Operates with local development adapters (local CSV file append, dry-run WhatsApp notifications) without requiring Google Cloud Console login, while remaining ready for live Google Sheets and Twilio credentials.
             </p>
           </div>
 

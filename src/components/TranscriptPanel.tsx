@@ -84,7 +84,7 @@ export function TranscriptPanel({ messages, isSpeaking, isListening }: Transcrip
               >
                 <div className="flex items-center justify-between gap-4 mb-1 text-[10px] opacity-60">
                   <span className="font-semibold uppercase tracking-wider">
-                    {msg.role === "assistant" ? "Tisha (Studio Olives Cre)" : "You"}
+                    {msg.role === "assistant" ? "Tisha (HDFC Bank Prototype)" : "You"}
                   </span>
                   {msg.time && <span>{msg.time}</span>}
                 </div>

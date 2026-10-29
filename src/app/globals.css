@@ -49,3 +49,15 @@ body {
 .animate-pulse-slow {
   animation: pulseSlow 3s ease-in-out infinite;
 }
+
+@keyframes phoneFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.phone-float { animation: phoneFloat 9s ease-in-out infinite; }
+.phone-active { animation-duration: 7s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .phone-float { animation: none; }
+}

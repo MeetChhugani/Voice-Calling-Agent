@@ -102,7 +102,7 @@ export function RequirementsSummary({ lead }: RequirementsSummaryProps) {
           {lead.budget_fit !== undefined && lead.budget_fit !== null && (
             <div>
               <span className="text-[10px] uppercase tracking-wider text-[#6B775C] font-semibold block">
-                ₹5 Cr+ Benchmark Alignment
+                Request qualification
               </span>
               <p
                 className={`font-medium mt-0.5 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded ${
@@ -112,7 +112,7 @@ export function RequirementsSummary({ lead }: RequirementsSummaryProps) {
                 }`}
               >
                 <CheckCircle2 className="w-3 h-3" />
-                {lead.budget_fit ? "Aligned (₹5 Cr+)" : "Discussing scope/budget"}
+                {lead.budget_fit ? "Qualified for follow-up" : "Awaiting staff review"}
               </p>
             </div>
           )}

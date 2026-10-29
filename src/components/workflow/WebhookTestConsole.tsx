@@ -19,31 +19,25 @@ interface WebhookTestConsoleProps {
 
 const SAMPLE_PAYLOADS: { label: string; payload: WebhookPayload }[] = [
   {
-    label: "High-Budget Qualified Villa (₹8.5 Cr)",
+    label: "Credit Card Statement Question",
     payload: {
-      name: "Kabir Oberoi",
+      name: "Anita Sharma",
       phone: "+919811223344",
-      email: "kabir@oberoienterprises.in",
-      propertyType: "Luxury Villa",
-      budget: "8.5 Cr",
-      timeline: "Immediate",
-      message:
-        "Looking for full turnkey architecture and interior design for a 14,000 sq ft private villa in Chhatarpur, Delhi. Budget allocated is around 8.5 Crore rupees.",
-      channel: "web",
+      email: "anita@example.com",
+      propertyType: "Credit card support",
+      message: "I need help understanding a charge on my credit card statement.",
+      channel: "call",
     },
   },
   {
-    label: "Qualified Penthouse (₹6.0 Cr)",
+    label: "Savings Account Inquiry",
     payload: {
       name: "Rohit Dhawan",
       phone: "+919307512816",
       email: "rohit@dhawan.com",
-      propertyType: "Penthouse",
-      budget: "6 Cr",
-      timeline: "Within 2 months",
-      message:
-        "Need contemporary luxury interior concepts and bespoke Italian marble work for our 6,000 sq ft penthouse in Gurgaon. Budget is approximately ₹6 Cr.",
-      channel: "web",
+      propertyType: "Savings account",
+      message: "I would like to learn about opening a savings account.",
+      channel: "call",
     },
   },
   {

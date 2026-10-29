@@ -120,7 +120,7 @@ export function NodeConfigPanel({
           </div>
           <div className="bg-neutral-800/60 p-2.5 rounded-lg text-[11px] text-neutral-300">
             <span className="font-semibold block text-cyan-300 mb-1">Brand Guideline:</span>
-            Evaluates client inquiries against Studio Olives Cre’s ₹5 Crore investment benchmark.
+            Routes HDFC Bank customer inquiries using the configured qualification rules.
           </div>
         </div>
       )}

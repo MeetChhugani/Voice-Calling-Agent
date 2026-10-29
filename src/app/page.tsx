@@ -18,6 +18,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   Loader2,
+  CreditCard,
+  Wifi,
+  Signal,
+  Send,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -50,6 +54,8 @@ export default function HdfcVoiceAssistantPage() {
   const [messages, setMessages] = useState<TranscriptMsg[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("call");
+  const [typedMessage, setTypedMessage] = useState("");
+  const [typedMessageStatus, setTypedMessageStatus] = useState<string | null>(null);
 
   // My Request lookup
   const [requestPhone, setRequestPhone] = useState("");
@@ -119,7 +125,16 @@ export default function HdfcVoiceAssistantPage() {
     setCallStatus("connecting");
     setMessages([]);
     try {
-      await vapiRef.current.start(process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || "");
+      const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID?.trim();
+      if (assistantId && !assistantId.includes("your_vapi_assistant_id")) {
+        await vapiRef.current.start(assistantId);
+      } else {
+        const response = await fetch("/api/vapi/config", { cache: "no-store" });
+        if (!response.ok) throw new Error("Could not load Tisha's HDFC assistant configuration.");
+        const config = await response.json();
+        if (!config.assistantConfig) throw new Error("HDFC assistant configuration is unavailable.");
+        await vapiRef.current.start(config.assistantConfig);
+      }
     } catch (err: any) {
       setErrorMessage(err?.message || "Failed to start call.");
       setCallStatus("ready");
@@ -142,6 +157,32 @@ export default function HdfcVoiceAssistantPage() {
       setIsMuted(next);
     } catch {}
   }, [isMuted]);
+
+  const sendTypedMessage = useCallback(() => {
+    const message = typedMessage.trim();
+    if (!message) return;
+    const sessionActive = ["connecting", "listening", "speaking", "thinking"].includes(callStatus);
+    if (!vapiRef.current || !sessionActive) {
+      setTypedMessageStatus("Start a voice session before sending a typed message.");
+      return;
+    }
+    try {
+      vapiRef.current.send({
+        type: "add-message",
+        message: { role: "user", content: message },
+      });
+      setMessages((previous) => [...previous, {
+        id: `${Date.now()}-${Math.random()}`,
+        role: "user",
+        text: message,
+        time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+      }]);
+      setTypedMessage("");
+      setTypedMessageStatus(null);
+    } catch {
+      setTypedMessageStatus("Could not send your message. Please try again.");
+    }
+  }, [callStatus, typedMessage]);
 
   const resetCall = () => {
     setCallStatus("ready");
@@ -202,35 +243,33 @@ export default function HdfcVoiceAssistantPage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col font-sans text-slate-100"
-      style={{
-        background: "linear-gradient(145deg, #002D5A 0%, #004C8F 55%, #001B36 100%)",
-      }}
+      className="min-h-screen flex flex-col font-sans text-slate-900"
+      style={{ background: "radial-gradient(ellipse at 50% 42%, #ffffff 0%, #f1f6fb 50%, #e7eff7 100%)" }}
     >
       {/* Top Header */}
-      <header className="bg-black/25 backdrop-blur-md border-b border-white/10 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center font-extrabold text-xl shadow-md"
-            style={{ backgroundColor: "#FFFFFF", color: "#004C8F" }}
+            className="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-xl shadow-md text-white"
+            style={{ backgroundColor: "#004C8F" }}
           >
             H
           </div>
           <div>
-            <div className="font-bold text-white text-base tracking-wide flex items-center gap-2">
+            <div className="font-bold text-slate-900 text-base tracking-wide flex items-center gap-2">
               HDFC Bank
-              <span className="bg-red-600 text-white text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full tracking-wider">
+              <span className="bg-blue-50 text-blue-800 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full tracking-wider border border-blue-100">
                 Prototype
               </span>
             </div>
-            <div className="text-xs text-blue-200">AI Customer Assistance Voice Agent</div>
+            <div className="text-xs text-slate-500">AI Customer Assistance Voice Agent</div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
-            className="text-xs font-medium text-blue-200 hover:text-white bg-white/10 hover:bg-white/20 transition-all px-3 py-1.5 rounded-lg border border-white/10"
+            className="text-xs font-medium text-blue-800 hover:text-blue-950 bg-blue-50 hover:bg-blue-100 transition-all px-3 py-1.5 rounded-lg border border-blue-100"
           >
             Staff Dashboard
           </Link>
@@ -238,19 +277,89 @@ export default function HdfcVoiceAssistantPage() {
       </header>
 
       {/* Main Body */}
-      <main className="flex-1 flex flex-col items-center px-4 py-6 max-w-xl mx-auto w-full">
+      <main className="relative flex flex-1 flex-col items-center justify-center px-4 py-8 sm:py-12 max-w-6xl mx-auto w-full">
         {/* Security / Prototype Notice */}
-        <div className="w-full mb-4 bg-amber-500/15 border border-amber-400/30 rounded-xl p-3.5 flex items-start gap-3 backdrop-blur-sm">
-          <ShieldCheck className="w-5 h-5 text-amber-300 mt-0.5 flex-shrink-0" />
-          <div className="text-xs text-amber-100/95 leading-relaxed">
-            <strong className="text-amber-200 font-semibold">Security Notice:</strong> HDFC Bank will{" "}
-            <strong>NEVER</strong> ask for your OTP, UPI/ATM PIN, passwords, or full 16-digit card number. Do not share
-            any secret authentication credentials.
-          </div>
-        </div>
+        <div className="w-full max-w-[500px]">
+          <section className="relative flex flex-col items-center justify-center px-5 py-5 sm:px-10">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,76,143,0.10),transparent_60%)]" />
+            <div className="relative z-10 mb-7 text-center">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-800 shadow-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Secure voice assistance
+              </div>
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Talk to Tisha</h1>
+              <p className="mt-1 text-sm text-slate-500">HDFC Bank customer assistance prototype</p>
+            </div>
 
-        {/* Card Container */}
-        <div className="w-full bg-white/10 backdrop-blur-md rounded-2xl overflow-hidden border border-white/15 shadow-2xl flex flex-col">
+            <div className={`relative z-10 phone-float ${callActive ? "phone-active" : ""}`}>
+              <div className="absolute -inset-7 rounded-[3.5rem] bg-blue-300/20 blur-2xl" />
+              <div className="relative w-[min(82vw,310px)] rounded-[2.8rem] border border-slate-300 bg-gradient-to-br from-slate-300 via-slate-100 to-slate-300 p-[7px] shadow-[0_30px_70px_-28px_rgba(15,23,42,0.45)] ring-1 ring-slate-400/70">
+                <div className="relative flex aspect-[9/19] flex-col overflow-hidden rounded-[2.35rem] border border-slate-300 bg-gradient-to-b from-white via-slate-50 to-blue-50 px-4 pb-5 pt-3">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_28%,rgba(0,76,143,0.08),transparent_35%),radial-gradient(circle_at_15%_75%,rgba(59,130,246,0.12),transparent_38%)]" />
+                  <div className="relative flex h-7 items-center justify-between px-1 text-[9px] font-semibold text-slate-600">
+                    <span>9:41</span><span className="absolute left-1/2 top-0.5 h-4 w-[72px] -translate-x-1/2 rounded-full bg-slate-900" />
+                    <span className="flex items-center gap-1"><Signal className="h-3 w-3" /><Wifi className="h-3 w-3" /><span className="ml-0.5 h-2.5 w-4 rounded-[3px] border border-slate-500 p-[1px]"><span className="block h-full w-2/3 rounded-[1px] bg-emerald-500" /></span></span>
+                  </div>
+                  <div className="relative mt-5 flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#004C8F] font-bold text-white shadow-lg">H</div>
+                    <div><div className="text-[11px] font-semibold text-slate-900">HDFC Bank</div><div className="text-[9px] text-slate-500">Tisha · Voice assistance</div></div>
+                    <span className="ml-auto rounded-full border border-blue-100 bg-blue-50 px-2 py-1 text-[8px] text-blue-800">PROTOTYPE</span>
+                  </div>
+                  <div className="relative flex flex-1 flex-col items-center justify-center text-center">
+                    <div className={`relative mb-5 flex h-28 w-28 items-center justify-center rounded-full border border-blue-200 bg-gradient-to-br from-blue-100 to-white shadow-[0_0_45px_rgba(0,76,143,0.15)] ${callActive ? "animate-pulse" : ""}`}>
+                      <div className="absolute inset-2 rounded-full border border-blue-200/70" />
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#004C8F] to-blue-600 text-3xl text-white shadow-inner">✦</div>
+                    </div>
+                    <p className="text-lg font-semibold text-slate-900">Tisha</p>
+                    <p className="mt-1 text-[10px] text-slate-500">{callActive ? sc.label : "Here to help with your banking query"}</p>
+                    {callActive && <p className="mt-2 font-mono text-xs text-blue-800">{formatDuration(callDuration)}</p>}
+                    <div className="mt-6 flex max-w-[190px] flex-wrap justify-center gap-1.5">
+                      {["Cards", "Accounts", "Loans", "Security"].map((item) => <span key={item} className="rounded-full border border-blue-100 bg-white/80 px-2.5 py-1 text-[8px] text-slate-600">{item}</span>)}
+                    </div>
+                  </div>
+                  <div className="relative flex items-center justify-center gap-5 pb-1">
+                    {callActive && <button onClick={toggleMute} aria-label={isMuted ? "Unmute microphone" : "Mute microphone"} className={`flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 ${isMuted ? "bg-amber-500 text-white" : "bg-white text-slate-700"}`}>{isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}</button>}
+                    <button onClick={callActive ? endCall : startCall} aria-label={callActive ? "End voice assistance call" : "Start voice assistance call"} disabled={callStatus === "connecting"} className={`flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition hover:scale-105 disabled:opacity-70 ${callActive ? "rotate-[135deg] bg-red-500" : "bg-[#004C8F]"}`}>
+                      {callStatus === "connecting" ? <Loader2 className="h-6 w-6 animate-spin" /> : <Phone className="h-6 w-6" />}
+                    </button>
+                    {callActive ? <button aria-label="Speaker enabled" className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700"><Volume2 className="h-4 w-4" /></button> : <div className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-100 bg-white"><CreditCard className="h-4 w-4 text-blue-800" /></div>}
+                  </div>
+                  <div className="relative mx-auto mt-4 h-1 w-20 rounded-full bg-slate-400/60" />
+                </div>
+              </div>
+            </div>
+            <p className="relative z-10 mt-7 text-center text-xs text-slate-500">{callStatus === "ready" ? "Tap the button to begin" : callStatus === "connecting" ? "Connecting securely…" : callActive ? "Tap red to end · Use the mic to mute" : "Call ended · Tap to start again"}</p>
+            {errorMessage && <div className="relative z-10 mt-3 flex max-w-sm items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-800"><AlertCircle className="h-4 w-4 shrink-0" />{errorMessage}</div>}
+            <div className="relative z-10 mt-6 w-full max-w-[420px] rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm sm:p-4">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label htmlFor="typed-message" className="text-xs font-semibold text-slate-800">Type to Tisha</label>
+                <span className="text-[10px] text-slate-500">Mobile · email · request details</span>
+              </div>
+              <div className="flex items-end gap-2">
+                <textarea
+                  id="typed-message"
+                  rows={2}
+                  maxLength={1000}
+                  value={typedMessage}
+                  onChange={(event) => { setTypedMessage(event.target.value); setTypedMessageStatus(null); }}
+                  onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendTypedMessage(); } }}
+                  placeholder="Type a question or details you want to share…"
+                  className="min-h-[52px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  type="button"
+                  onClick={sendTypedMessage}
+                  disabled={!typedMessage.trim()}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#004C8F] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Send typed message to Tisha"
+                  title={callActive ? "Send message" : "Start a voice session first"}
+                ><Send className="h-4 w-4" /></button>
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-500">You can type your phone number, email, or a service request. Never enter OTPs, PINs, passwords, CVVs, or full card numbers.</p>
+              {typedMessageStatus && <p role="status" className="mt-2 text-[11px] text-amber-700">{typedMessageStatus}</p>}
+            </div>
+          </section>
+
+          <section className="hidden min-h-[580px] flex-col border-t border-white/10 bg-black/15 lg:border-l lg:border-t-0">
           {/* Navigation Tabs */}
           <div className="flex border-b border-white/15 bg-black/10">
             {tabs.map((tab) => (
@@ -269,10 +378,10 @@ export default function HdfcVoiceAssistantPage() {
             ))}
           </div>
 
-          <div className="p-6 min-h-[420px] flex flex-col justify-between">
+          <div className="flex min-h-[420px] flex-1 flex-col justify-between p-5 sm:p-6">
             {/* TAB 1: CALL */}
             {activeTab === "call" && (
-              <div className="flex flex-col items-center justify-center flex-1 py-4 gap-6">
+                <div className="hidden flex-col items-center justify-center flex-1 py-4 gap-6">
                 {/* Agent Avatar */}
                 <div className="relative">
                   <div
@@ -552,11 +661,12 @@ export default function HdfcVoiceAssistantPage() {
               </div>
             )}
           </div>
+          </section>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-3 text-blue-200/60 text-[11px] px-4 border-t border-white/5">
+      <footer className="text-center py-3 text-slate-500 text-[11px] px-4 border-t border-slate-200 bg-white/60">
         HDFC Bank Customer Assistance Prototype · Security Shield Active · Verified Official Knowledge
       </footer>
     </div>

@@ -94,7 +94,7 @@ export function WorkflowCanvas({
           <div className="flex items-center gap-2">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             <h2 className="text-sm font-semibold tracking-wide text-neutral-100 uppercase">
-              Workflow Graph: Studio Olives Cre Qualification Pipeline
+              Workflow Graph: HDFC Bank Request Pipeline
             </h2>
           </div>
           <p className="text-xs text-neutral-400 mt-0.5">
@@ -283,7 +283,7 @@ export function WorkflowCanvas({
               {getStatusBadge(nodeStatuses["node-filter"])}
             </div>
             <h4 className="text-xs font-semibold text-neutral-200">Filter</h4>
-            <span className="text-[9px] text-neutral-400 block mt-1">₹5 Cr+ Only</span>
+            <span className="text-[9px] text-neutral-400 block mt-1">Staff review</span>
 
             {/* Output pin */}
             <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#131722] border-2 border-blue-400 flex items-center justify-center">
