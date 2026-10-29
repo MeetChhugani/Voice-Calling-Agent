@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import Script from "next/script";
+import Vapi from "@vapi-ai/web";
 import {
   Phone,
   PhoneOff,
@@ -45,41 +45,6 @@ interface SupportRequest {
   is_fraud_or_urgent?: boolean;
 }
 
-type PolyphoneAPI = {
-  connectAndCall: () => void;
-  endCall: () => void;
-  mute: () => void;
-  unmute: () => void;
-  sendInfo: (name: string, value: Record<string, unknown>) => void;
-  onConnecting: (handler: () => void) => void;
-  onConnected: (handler: () => void) => void;
-  onEnded: (handler: () => void) => void;
-  onFailed: (handler: (error?: unknown) => void) => void;
-  onMuted: (handler: () => void) => void;
-  onUnmuted: (handler: () => void) => void;
-  onTranscription: (handler: (event: unknown) => void) => void;
-};
-
-declare global {
-  interface Window {
-    PolyphoneAPI?: PolyphoneAPI;
-  }
-}
-
-function getPolyphoneApi() {
-  return typeof window === "undefined" ? undefined : window.PolyphoneAPI;
-}
-
-function getTranscriptionText(event: unknown): { role: "assistant" | "user"; text: string; final: boolean } | null {
-  if (!event || typeof event !== "object") return null;
-  const data = event as Record<string, unknown>;
-  const text = typeof data.text === "string" ? data.text : typeof data.transcript === "string" ? data.transcript : "";
-  if (!text.trim()) return null;
-  const role = data.role === "agent" || data.role === "assistant" ? "assistant" : "user";
-  const final = data.final === true || data.isFinal === true || data.transcriptType === "final";
-  return { role, text: text.trim(), final };
-}
-
 export default function HdfcVoiceAssistantPage() {
   const [callStatus, setCallStatus] = useState<CallStatus>("ready");
   const [isMuted, setIsMuted] = useState(false);
@@ -89,7 +54,6 @@ export default function HdfcVoiceAssistantPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("call");
   const [typedMessage, setTypedMessage] = useState("");
   const [typedMessageStatus, setTypedMessageStatus] = useState<string | null>(null);
-  const polyaiWidgetScript = process.env.NEXT_PUBLIC_POLYAI_WIDGET_SCRIPT_URL?.trim();
 
   // My Request lookup
   const [requestPhone, setRequestPhone] = useState("");
@@ -98,63 +62,50 @@ export default function HdfcVoiceAssistantPage() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [requestSearched, setRequestSearched] = useState(false);
 
+  const vapiRef = useRef<Vapi | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const bindPolyphoneEvents = () => {
-      const api = getPolyphoneApi();
-      if (!api) return false;
-      api.onConnecting(() => setCallStatus("connecting"));
-      api.onConnected(() => {
-        setCallStatus("listening");
-        setCallDuration(0);
-        if (timerRef.current) clearInterval(timerRef.current);
-        timerRef.current = setInterval(() => setCallDuration((d) => d + 1), 1000);
-      });
-      const finishCall = () => {
-        setCallStatus("ended");
-        if (timerRef.current) clearInterval(timerRef.current);
-      };
-      api.onEnded(finishCall);
-      api.onFailed((error) => {
-        console.error("[PolyAI Web Calling]", error);
-        setErrorMessage("PolyAI could not connect the call. Check your microphone permission and try again.");
-        finishCall();
-      });
-      api.onMuted(() => setIsMuted(true));
-      api.onUnmuted(() => setIsMuted(false));
-      api.onTranscription((event) => {
-        const transcription = getTranscriptionText(event);
-        if (transcription?.final) {
-          const now = new Date();
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `${Date.now()}-${Math.random()}`,
-              role: transcription.role,
-              text: transcription.text,
-              time: now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-            },
-          ]);
-        }
-        setCallStatus(transcription?.role === "assistant" && !transcription.final ? "speaking" : "listening");
-      });
-      return true;
-    };
+    const publicKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY?.trim();
+    if (!publicKey || publicKey.includes("your_vapi_public_key")) return;
 
-    let attempts = 0;
-    const poll = window.setInterval(() => {
-      attempts += 1;
-      if (bindPolyphoneEvents() || attempts >= 40) window.clearInterval(poll);
-    }, 250);
+    const vapi = new Vapi(publicKey);
+    vapiRef.current = vapi;
+    vapi.on("call-start", () => {
+      setCallStatus("listening");
+      setCallDuration(0);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => setCallDuration((duration) => duration + 1), 1000);
+    });
+    vapi.on("call-end", () => {
+      setCallStatus("ended");
+      if (timerRef.current) clearInterval(timerRef.current);
+    });
+    vapi.on("speech-start", () => setCallStatus("speaking"));
+    vapi.on("speech-end", () => setCallStatus("listening"));
+    vapi.on("message", (message) => {
+      if (message.type !== "transcript" || message.transcriptType !== "final") return;
+      const now = new Date();
+      setMessages((previous) => [...previous, {
+        id: Date.now().toString() + "-" + Math.random().toString(),
+        role: message.role === "assistant" ? "assistant" : "user",
+        text: message.transcript,
+        time: now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+      }]);
+    });
+    vapi.on("error", (error) => {
+      console.error("[Vapi]", error);
+      setErrorMessage(error instanceof Error ? error.message : "Vapi call error. Check your assistant settings and try again.");
+      setCallStatus("ended");
+      if (timerRef.current) clearInterval(timerRef.current);
+    });
 
     return () => {
-      window.clearInterval(poll);
-      if (timerRef.current) clearInterval(timerRef.current);
       try {
-        getPolyphoneApi()?.endCall();
+        vapi.stop();
       } catch {}
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
 
@@ -163,16 +114,25 @@ export default function HdfcVoiceAssistantPage() {
   }, [messages]);
 
   const startCall = useCallback(async () => {
-    const api = getPolyphoneApi();
-    if (!api) {
-      setErrorMessage("PolyAI Web Calling is not configured. Add the widget script URL from Agent Studio to NEXT_PUBLIC_POLYAI_WIDGET_SCRIPT_URL.");
+    const vapi = vapiRef.current;
+    if (!vapi) {
+      setErrorMessage("Vapi is not configured. Add NEXT_PUBLIC_VAPI_PUBLIC_KEY and NEXT_PUBLIC_VAPI_ASSISTANT_ID in your deployment settings.");
       return;
     }
     setErrorMessage(null);
     setCallStatus("connecting");
     setMessages([]);
     try {
-      api.connectAndCall();
+      const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID?.trim();
+      if (assistantId && !assistantId.includes("your_vapi_assistant_id")) {
+        await vapi.start(assistantId);
+      } else {
+        const response = await fetch("/api/vapi/config", { cache: "no-store" });
+        if (!response.ok) throw new Error("Could not load the Vapi assistant configuration.");
+        const config = await response.json();
+        if (!config.assistantConfig) throw new Error("Vapi assistant configuration is unavailable.");
+        await vapi.start(config.assistantConfig);
+      }
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to start call.");
       setCallStatus("ready");
@@ -181,19 +141,18 @@ export default function HdfcVoiceAssistantPage() {
 
   const endCall = useCallback(() => {
     try {
-      getPolyphoneApi()?.endCall();
+      vapiRef.current?.stop();
     } catch {}
     setCallStatus("ended");
     if (timerRef.current) clearInterval(timerRef.current);
   }, []);
 
   const toggleMute = useCallback(() => {
-    const api = getPolyphoneApi();
-    if (!api) return;
+    const vapi = vapiRef.current;
+    if (!vapi) return;
     const next = !isMuted;
     try {
-      if (next) api.mute();
-      else api.unmute();
+      vapi.setMuted(next);
       setIsMuted(next);
     } catch {}
   }, [isMuted]);
@@ -202,12 +161,16 @@ export default function HdfcVoiceAssistantPage() {
     const message = typedMessage.trim();
     if (!message) return;
     const sessionActive = ["connecting", "listening", "speaking", "thinking"].includes(callStatus);
-    if (!getPolyphoneApi() || !sessionActive) {
+    const vapi = vapiRef.current;
+    if (!vapi || !sessionActive) {
       setTypedMessageStatus("Start a voice session before sending a typed message.");
       return;
     }
     try {
-      getPolyphoneApi()?.sendInfo("customer_typed_message", { text: message });
+      vapi.send({
+        type: "add-message",
+        message: { role: "user", content: message },
+      });
       setMessages((previous) => [...previous, {
         id: `${Date.now()}-${Math.random()}`,
         role: "user",
@@ -215,8 +178,7 @@ export default function HdfcVoiceAssistantPage() {
         time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
       }]);
       setTypedMessage("");
-      setTypedMessageStatus("Shared with Tisha as conversation context.");
-      window.setTimeout(() => setTypedMessageStatus(null), 3500);
+      setTypedMessageStatus(null);
     } catch {
       setTypedMessageStatus("Could not share those details. Please try again or say them aloud.");
     }
@@ -284,13 +246,6 @@ export default function HdfcVoiceAssistantPage() {
       className="min-h-screen flex flex-col font-sans text-slate-900"
       style={{ background: "radial-gradient(ellipse at 50% 42%, #ffffff 0%, #f1f6fb 50%, #e7eff7 100%)" }}
     >
-      {polyaiWidgetScript && (
-        <Script
-          src={polyaiWidgetScript}
-          strategy="afterInteractive"
-          onError={() => setErrorMessage("PolyAI Web Calling script could not be loaded. Check NEXT_PUBLIC_POLYAI_WIDGET_SCRIPT_URL.")}
-        />
-      )}
       {/* Top Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -372,7 +327,7 @@ export default function HdfcVoiceAssistantPage() {
                 </div>
               </div>
             </div>
-            <p className="relative z-10 mt-7 text-center text-xs text-slate-500">{callStatus === "ready" ? (polyaiWidgetScript ? "Tap the button to begin" : "Add the PolyAI widget URL to enable calls") : callStatus === "connecting" ? "Connecting securely…" : callActive ? "Tap red to end · Use the mic to mute" : "Call ended · Tap to start again"}</p>
+            <p className="relative z-10 mt-7 text-center text-xs text-slate-500">{callStatus === "ready" ? "Tap the button to begin" : callStatus === "connecting" ? "Connecting securely…" : callActive ? "Tap red to end · Use the mic to mute" : "Call ended · Tap to start again"}</p>
             {errorMessage && <div className="relative z-10 mt-3 flex max-w-sm items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-800"><AlertCircle className="h-4 w-4 shrink-0" />{errorMessage}</div>}
             <div className="relative z-10 mt-6 w-full max-w-[420px] rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm sm:p-4">
               <div className="mb-2 flex items-center justify-between gap-3">
