@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const requests = SupportRequestService.getAllRequests();
+    const requests = await SupportRequestService.getAllRequests();
     const excelRequests = ExcelService.getAllHDFCRequests();
 
     const totalRequests = requests.length;

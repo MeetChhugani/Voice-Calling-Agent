@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { createClient } from "@supabase/supabase-js";
 import { SupportRequest, SupportRequestSchema } from "@/types";
 import { SecurityRedactionService } from "./security-redaction-service";
 import { ExcelService } from "./excel-service";
@@ -42,6 +43,13 @@ const IN_MEMORY_SUPPORT_REQUESTS: SupportRequest[] = [
 ];
 
 export class SupportRequestService {
+  private static getSupabaseClient() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key || url.includes("your-project.supabase.co")) return null;
+    return createClient(url, key);
+  }
+
   private static getJsonPath(): string {
     return path.join(process.cwd(), "data", "hdfc_support_requests.json");
   }
@@ -71,7 +79,20 @@ export class SupportRequestService {
   /**
    * Retrieves all customer assistance requests
    */
-  public static getAllRequests(): SupportRequest[] {
+  public static async getAllRequests(): Promise<SupportRequest[]> {
+    const supabase = this.getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("support_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.error("[SupportRequestService] Supabase read failed:", error.message);
+        throw new Error("Could not load support requests from the configured database.");
+      }
+      return (data || []).map((record) => SupportRequestSchema.parse(record));
+    }
+
     const disk = this.tryReadDisk();
     if (disk && disk.length > 0) {
       IN_MEMORY_SUPPORT_REQUESTS.length = 0;
@@ -124,14 +145,24 @@ export class SupportRequestService {
         ? `[Security Note: Customer message contained credentials that were automatically redacted.]`
         : null),
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
-    const requests = this.getAllRequests();
-    requests.unshift(newTicket);
+    const supabase = this.getSupabaseClient();
+    if (supabase) {
+      const { error } = await supabase.from("support_requests").insert(newTicket);
+      if (error) {
+        console.error("[SupportRequestService] Supabase insert failed:", error.message);
+        throw new Error("Could not save the support request to the configured database.");
+      }
+    } else {
+      const requests = await this.getAllRequests();
+      requests.unshift(newTicket);
 
-    IN_MEMORY_SUPPORT_REQUESTS.length = 0;
-    IN_MEMORY_SUPPORT_REQUESTS.push(...requests);
-    this.tryWriteDisk(requests);
+      IN_MEMORY_SUPPORT_REQUESTS.length = 0;
+      IN_MEMORY_SUPPORT_REQUESTS.push(...requests);
+      this.tryWriteDisk(requests);
+    }
 
     // Sync into Excel master sheet
     try {
@@ -155,13 +186,33 @@ export class SupportRequestService {
   public static findByTicketOrPhone(query: string): SupportRequest[] {
     const clean = query.trim().toLowerCase();
     const cleanDigits = query.replace(/\D/g, "");
-    const all = this.getAllRequests();
+    const disk = this.tryReadDisk();
+    if (disk && disk.length > 0) {
+      IN_MEMORY_SUPPORT_REQUESTS.length = 0;
+      IN_MEMORY_SUPPORT_REQUESTS.push(...disk);
+    }
+    const all = [...IN_MEMORY_SUPPORT_REQUESTS];
 
     return all.filter((r) => {
       if (r.id.toLowerCase() === clean) return true;
       if (cleanDigits.length >= 5) {
         const rDigits = r.phone.replace(/\D/g, "");
         if (rDigits.includes(cleanDigits) || cleanDigits.includes(rDigits)) return true;
+      }
+      return false;
+    });
+  }
+
+  public static async findByTicketOrPhoneAsync(query: string): Promise<SupportRequest[]> {
+    const clean = query.trim().toLowerCase();
+    const cleanDigits = query.replace(/\D/g, "");
+    const all = await this.getAllRequests();
+
+    return all.filter((request) => {
+      if (request.id.toLowerCase() === clean) return true;
+      if (cleanDigits.length >= 5) {
+        const requestDigits = request.phone.replace(/\D/g, "");
+        return requestDigits.includes(cleanDigits) || cleanDigits.includes(requestDigits);
       }
       return false;
     });

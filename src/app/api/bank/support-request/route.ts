@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       phone: parsed.data.phone,
       phone_verified: parsed.data.phone_verified,
       email: parsed.data.email,
-      category: parsed.data.category as any,
+      category: parsed.data.category,
       product_type: parsed.data.product_type,
       issue_summary: parsed.data.issue_summary,
       preferred_callback_time: parsed.data.preferred_callback_time,
@@ -29,6 +29,6 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const all = SupportRequestService.getAllRequests();
+  const all = await SupportRequestService.getAllRequests();
   return NextResponse.json({ requests: all, total: all.length });
 }

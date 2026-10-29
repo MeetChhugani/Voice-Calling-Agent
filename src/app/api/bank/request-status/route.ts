@@ -9,6 +9,6 @@ export async function GET(request: Request) {
   if (!query) {
     return NextResponse.json({ error: "Provide 'q' param with ticket ID or phone number." }, { status: 400 });
   }
-  const results = SupportRequestService.findByTicketOrPhone(query);
+  const results = await SupportRequestService.findByTicketOrPhoneAsync(query);
   return NextResponse.json({ found: results.length > 0, requests: results, total: results.length });
 }

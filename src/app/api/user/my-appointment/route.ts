@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const results = SupportRequestService.findByTicketOrPhone(query);
+  const results = await SupportRequestService.findByTicketOrPhoneAsync(query);
   return NextResponse.json({
     found: results.length > 0,
     requests: results,

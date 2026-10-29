@@ -1,22 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  Users,
   Search,
-  ExternalLink,
-  ShieldCheck,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
   ArrowLeft,
   KeyRound,
   RefreshCw,
-  FileDown,
   Sparkles,
   LogOut,
-  Clock,
   Phone,
   FileSpreadsheet,
 } from "lucide-react";
@@ -51,8 +43,8 @@ export default function AdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const fetchData = async (authToken: string) => {
-    setLoading(true);
+  const fetchData = useCallback(async (authToken: string, showLoading = true) => {
+    if (showLoading) setLoading(true);
     setAuthError(null);
     try {
       const res = await fetch(`/api/admin/data?token=${encodeURIComponent(authToken)}`);
@@ -62,7 +54,7 @@ export default function AdminDashboardPage() {
         if (typeof window !== "undefined") {
           sessionStorage.removeItem("soc_admin_token");
         }
-        setLoading(false);
+        if (showLoading) setLoading(false);
         return;
       }
       const data = await res.json();
@@ -86,20 +78,30 @@ export default function AdminDashboardPage() {
     } catch {
       setAuthError("Failed to fetch administrative data. Please check network connection.");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    const restoreTimer = window.setTimeout(() => {
       const savedToken = sessionStorage.getItem("soc_admin_token");
       if (savedToken) {
-        fetchData(savedToken);
+        void fetchData(savedToken);
       } else {
         setLoading(false);
       }
-    }
-  }, []);
+    }, 0);
+    return () => window.clearTimeout(restoreTimer);
+  }, [fetchData]);
+
+  // Keep PolyAI-created requests visible while staff leave this dashboard open.
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    const interval = window.setInterval(() => {
+      void fetchData(token, false);
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [fetchData, isAuthenticated, token]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();

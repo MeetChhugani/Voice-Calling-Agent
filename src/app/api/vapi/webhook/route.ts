@@ -90,7 +90,7 @@ export async function POST(request: Request) {
           phone: parsed.data.phone,
           phone_verified: parsed.data.phone_verified,
           email: parsed.data.email,
-          category: parsed.data.category as any,
+          category: parsed.data.category,
           product_type: parsed.data.product_type,
           issue_summary: sanitized.redactedText,
           is_fraud_or_urgent: false,
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
           customer_name: parsed.data.customer_name,
           phone: parsed.data.phone,
           issue_summary: sanitizedDesc.redactedText,
-          category: "fraud_emergency" as any,
+          category: "fraud_emergency",
           is_fraud_or_urgent: true,
           agent_notes: `FRAUD/EMERGENCY ALERT. Incident type: ${parsed.data.incident_type}. Auto-escalated for immediate callback.`,
         });
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
           });
         }
         const lookupKey = parsed.data.request_id || parsed.data.phone || "";
-        const matches = SupportRequestService.findByTicketOrPhone(lookupKey);
+        const matches = await SupportRequestService.findByTicketOrPhoneAsync(lookupKey);
         if (matches.length === 0) {
           return toolResult(tcId, {
             found: false,
