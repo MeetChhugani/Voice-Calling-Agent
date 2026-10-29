@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Tisha | HDFC Bank Assistance Prototype",
+  title: "Dhruv | HDFC Bank Assistance Prototype",
   description:
-    "Speak with Tisha, an HDFC Bank customer assistance voice agent prototype.",
+    "Speak with Dhruv, an HDFC Bank customer assistance voice agent prototype.",
 };
 
 export default function RootLayout({
