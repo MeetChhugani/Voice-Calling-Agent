@@ -228,7 +228,7 @@ export default function HdfcVoiceAssistantPage() {
     connecting: { label: "Connecting...", color: "text-yellow-300", pulse: true },
     listening: { label: "Listening...", color: "text-emerald-300", pulse: true },
     thinking: { label: "Processing...", color: "text-blue-300", pulse: true },
-    speaking: { label: "Tisha Speaking", color: "text-cyan-300", pulse: true },
+    speaking: { label: "Dhruv Speaking", color: "text-cyan-300", pulse: true },
     ended: { label: "Call Ended", color: "text-slate-300", pulse: false },
   };
 
@@ -286,7 +286,7 @@ export default function HdfcVoiceAssistantPage() {
               <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-800 shadow-sm">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Secure voice assistance
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Talk to Tisha</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Talk to Dhruv</h1>
               <p className="mt-1 text-sm text-slate-500">HDFC Bank customer assistance prototype</p>
             </div>
 
@@ -301,7 +301,7 @@ export default function HdfcVoiceAssistantPage() {
                   </div>
                   <div className="relative mt-5 flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#004C8F] font-bold text-white shadow-lg">H</div>
-                    <div><div className="text-[11px] font-semibold text-slate-900">HDFC Bank</div><div className="text-[9px] text-slate-500">Tisha · Voice assistance</div></div>
+                    <div><div className="text-[11px] font-semibold text-slate-900">HDFC Bank</div><div className="text-[9px] text-slate-500">Dhruv · Voice assistance</div></div>
                     <span className="ml-auto rounded-full border border-blue-100 bg-blue-50 px-2 py-1 text-[8px] text-blue-800">PROTOTYPE</span>
                   </div>
                   <div className="relative flex flex-1 flex-col items-center justify-center text-center">
@@ -309,7 +309,7 @@ export default function HdfcVoiceAssistantPage() {
                       <div className="absolute inset-2 rounded-full border border-blue-200/70" />
                       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#004C8F] to-blue-600 text-3xl text-white shadow-inner">✦</div>
                     </div>
-                    <p className="text-lg font-semibold text-slate-900">Tisha</p>
+                    <p className="text-lg font-semibold text-slate-900">Dhruv</p>
                     <p className="mt-1 text-[10px] text-slate-500">{callActive ? sc.label : "Here to help with your banking query"}</p>
                     {callActive && <p className="mt-2 font-mono text-xs text-blue-800">{formatDuration(callDuration)}</p>}
                     <div className="mt-6 flex max-w-[190px] flex-wrap justify-center gap-1.5">
@@ -331,7 +331,7 @@ export default function HdfcVoiceAssistantPage() {
             {errorMessage && <div className="relative z-10 mt-3 flex max-w-sm items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-800"><AlertCircle className="h-4 w-4 shrink-0" />{errorMessage}</div>}
             <div className="relative z-10 mt-6 w-full max-w-[420px] rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm sm:p-4">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <label htmlFor="typed-message" className="text-xs font-semibold text-slate-800">Type to Tisha</label>
+                <label htmlFor="typed-message" className="text-xs font-semibold text-slate-800">Type to Dhruv</label>
                 <span className="text-[10px] text-slate-500">Mobile · email · request details</span>
               </div>
               <div className="flex items-end gap-2">
@@ -350,7 +350,7 @@ export default function HdfcVoiceAssistantPage() {
                   onClick={sendTypedMessage}
                   disabled={!typedMessage.trim()}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#004C8F] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label="Send typed message to Tisha"
+                  aria-label="Send typed message to Dhruv"
                   title={callActive ? "Send message" : "Start a voice session first"}
                 ><Send className="h-4 w-4" /></button>
               </div>
@@ -398,7 +398,7 @@ export default function HdfcVoiceAssistantPage() {
 
                 {/* Identity & Status */}
                 <div className="text-center">
-                  <h1 className="text-white font-bold text-2xl tracking-tight">Tisha</h1>
+                  <h1 className="text-white font-bold text-2xl tracking-tight">Dhruv</h1>
                   <p className="text-blue-200 text-xs mt-0.5">HDFC Bank Voice Coordinator</p>
                   <div className={`text-sm font-semibold mt-2 flex items-center justify-center gap-2 ${sc.color}`}>
                     {sc.pulse && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />}
@@ -475,7 +475,7 @@ export default function HdfcVoiceAssistantPage() {
                 {/* Helpful Hints */}
                 <div className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-center mt-2">
                   <p className="text-blue-200/90 text-xs leading-relaxed">
-                    Ask Tisha about <strong className="text-white">Savings Accounts</strong>,{" "}
+                    Ask Dhruv about <strong className="text-white">Savings Accounts</strong>,{" "}
                     <strong className="text-white">Fixed Deposits</strong>,{" "}
                     <strong className="text-white">Credit Cards</strong>,{" "}
                     <strong className="text-white">Home Loans</strong>, or{" "}
@@ -597,7 +597,7 @@ export default function HdfcVoiceAssistantPage() {
                         style={msg.role === "user" ? { backgroundColor: "#ED1C24" } : {}}
                       >
                         <div className="text-[10px] opacity-70 mb-0.5">
-                          {msg.role === "assistant" ? "Tisha" : "You"} · {msg.time}
+                          {msg.role === "assistant" ? "Dhruv" : "You"} · {msg.time}
                         </div>
                         <p>{msg.text}</p>
                       </div>

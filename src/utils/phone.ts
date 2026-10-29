@@ -93,7 +93,7 @@ function capitalize(str: string): string {
 }
 
 /**
- * Generates the verification question prompt for Tisha
+ * Generates the verification question prompt for Dhruv
  */
 export function generateVerificationPrompt(
   input: string,

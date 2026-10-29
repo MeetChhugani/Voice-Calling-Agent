@@ -31,7 +31,7 @@ class InMemoryStore {
       preferred_meeting_times: "Thursday afternoon",
       timezone: "Asia/Kolkata",
       consent_status: true,
-      source: "voice_agent_tisha",
+      source: "voice_agent_dhruv",
       call_summary: "High intent prospective client looking for complete architectural and interior design for new 12,000 sq ft villa in Golf Links. Highly interested in our Naraina Vihar team's turnkey capabilities.",
       lead_status: "booked",
       internal_notes: "VIP consultation scheduled.",
@@ -90,7 +90,7 @@ export class SupabaseService {
         timezone: leadInput.timezone || "Asia/Kolkata",
         phone_verified: leadInput.phone_verified ?? existing?.phone_verified ?? false,
         consent_status: true,
-        source: "voice_agent_tisha",
+        source: "voice_agent_dhruv",
       };
 
       memoryStore.leads.set(leadId, updatedLead);
@@ -144,7 +144,7 @@ export class SupabaseService {
         timezone: leadInput.timezone || "Asia/Kolkata",
         phone_verified: leadInput.phone_verified ?? false,
         consent_status: true,
-        source: "voice_agent_tisha",
+        source: "voice_agent_dhruv",
       };
       memoryStore.leads.set(fallbackId, fallbackLead);
       return { success: true, lead: fallbackLead, isFallback: true };

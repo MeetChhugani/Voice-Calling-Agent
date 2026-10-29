@@ -27,7 +27,7 @@ export function Header() {
           <div className="flex items-center gap-1.5 text-[#4A5340] bg-[#6B775C]/10 px-3.5 py-1.5 rounded-full text-[11px] font-semibold border border-[#6B775C]/20 shadow-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <ShieldCheck className="w-3 h-3 text-[#C5A059]" />
-            <span>Tisha: Voice Assistance</span>
+            <span>Dhruv: Voice Assistance</span>
           </div>
         </div>
       </div>

@@ -188,7 +188,7 @@ export class GoogleCalendarService {
         conferenceDataVersion: 1,
         requestBody: {
           summary: `Studio Olives Cre Architectural Consultation: ${params.fullName}`,
-          description: `VIP Client Architectural & Interior Consultation\n\nClient Name: ${params.fullName}\nPhone: ${params.phone}\nEmail: ${params.email}\nProject Details: ${params.projectOverview || "Luxury residential / commercial project"}\nArranged by Tisha (AI Voice Consultation Coordinator)`,
+          description: `VIP Client Architectural & Interior Consultation\n\nClient Name: ${params.fullName}\nPhone: ${params.phone}\nEmail: ${params.email}\nProject Details: ${params.projectOverview || "Luxury residential / commercial project"}\nArranged by Dhruv (AI Voice Consultation Coordinator)`,
           start: {
             dateTime: params.startTime,
             timeZone: params.timezone || "Asia/Kolkata",

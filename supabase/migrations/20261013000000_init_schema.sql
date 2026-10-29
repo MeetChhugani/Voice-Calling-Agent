@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS leads (
   preferred_meeting_times TEXT,
   timezone TEXT DEFAULT 'Asia/Kolkata',
   consent_status BOOLEAN DEFAULT TRUE,
-  source TEXT DEFAULT 'voice_agent_tisha',
+  source TEXT DEFAULT 'voice_agent_dhruv',
   call_summary TEXT,
   lead_status TEXT DEFAULT 'new_lead' CHECK (lead_status IN ('new_lead', 'qualifying', 'qualified', 'booking_pending', 'booked', 'not_qualified', 'follow_up_required', 'booking_failed')),
   internal_notes TEXT,

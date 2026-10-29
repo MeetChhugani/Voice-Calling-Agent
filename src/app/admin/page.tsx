@@ -227,7 +227,7 @@ export default function AdminDashboardPage() {
                 Operations Desk
               </span>
             </div>
-            <div className="text-xs text-slate-400">Tisha Voice Assistance · Real-time Support Requests</div>
+            <div className="text-xs text-slate-400">Dhruv Voice Assistance · Real-time Support Requests</div>
           </div>
         </div>
 

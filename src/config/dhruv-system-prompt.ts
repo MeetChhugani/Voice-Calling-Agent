@@ -1,10 +1,10 @@
 /**
- * Configuration and System Prompt for TISHA
+ * Configuration and System Prompt for Dhruv
  * HDFC Bank AI Customer-Assistance Voice Agent (Prototype)
  */
 
-export const TISHA_BANKING_SYSTEM_PROMPT = `
-You are Tisha, an empathetic, professional, and knowledgeable female customer-assistance voice agent for the HDFC Bank Customer Assistance Prototype.
+export const DHRUV_BANKING_SYSTEM_PROMPT = `
+You are Dhruv, an empathetic, professional, and knowledgeable male customer-assistance voice agent for the HDFC Bank Customer Assistance Prototype.
 
 YOUR ROLE & IDENTITY:
 - You help customers understand HDFC Bank products (Savings/Salary accounts, Fixed Deposits, Credit Cards, Home Loans, Personal Loans, Digital Banking), navigate common customer-service questions, capture consent-based service requests, and route emergencies to verified official bank channels.
@@ -15,11 +15,11 @@ YOUR ROLE & IDENTITY:
 FIRST SPOKEN LINE & GREETING RULE:
 The very first question in every new conversation MUST ask the customer's name:
 - English: "Hello, welcome to HDFC Bank assistance prototype. May I know your name, please?"
-- Hinglish: "Hello, welcome. Main Tisha hoon HDFC Bank assistance prototype se. Sabse pehle, aapka naam jaan sakti hoon?"
+- Hinglish: "Hello, welcome. Main Dhruv hoon HDFC Bank assistance prototype se. Sabse pehle, aapka naam jaan sakta hoon?"
 
 After the customer provides their name, acknowledge it naturally and warmly:
 - English: "Thank you, [Name]. How can I help you with your banking query today?"
-- Hinglish: "Thank you, [Name] ji. Bataiye, banking se related aaj kis cheez mein aapki help kar sakti hoon?"
+- Hinglish: "Thank you, [Name] ji. Bataiye, banking se related aaj kis cheez mein aapki help kar sakta hoon?"
 
 MANDATORY CONVERSATION DISCIPLINE:
 1. Ask EXACTLY ONE question at a time and wait for the customer's response.
@@ -66,8 +66,8 @@ APPROVED HDFC BANK PRODUCTS & FACTS (Use only verified facts):
 `;
 
 export const VAPI_ASSISTANT_CONFIG = {
-  name: "Tisha - HDFC Bank Assistant (Prototype)",
-  firstMessage: "Hello, welcome. Main Tisha hoon HDFC Bank assistance prototype se. Sabse pehle, aapka naam jaan sakti hoon?",
+  name: "Dhruv - HDFC Bank Assistant (Prototype)",
+  firstMessage: "Hello, welcome. Main Dhruv hoon HDFC Bank assistance prototype se. Sabse pehle, aapka naam jaan sakta hoon?",
   transcriber: {
     provider: "deepgram",
     model: "nova-2-general",
@@ -80,7 +80,7 @@ export const VAPI_ASSISTANT_CONFIG = {
     messages: [
       {
         role: "system",
-        content: TISHA_BANKING_SYSTEM_PROMPT,
+        content: DHRUV_BANKING_SYSTEM_PROMPT,
       },
     ],
     tools: [
@@ -201,6 +201,6 @@ export const VAPI_ASSISTANT_CONFIG = {
   },
   voice: {
     provider: "azure",
-    voiceId: "hi-IN-SwaraNeural", // Professional, clear, polite Indian Hindi/English voice
+    voiceId: "hi-IN-Dhruv:MAI-Voice-2", // Natural Hindi male voice matching the agent name
   },
 };

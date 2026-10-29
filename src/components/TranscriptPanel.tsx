@@ -38,7 +38,7 @@ export function TranscriptPanel({ messages, isSpeaking, isListening }: Transcrip
           {isSpeaking && (
             <span className="flex items-center gap-1.5 font-medium text-[#4A5340]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#4A5340] animate-pulse" />
-              Tisha Speaking
+              Dhruv Speaking
             </span>
           )}
           {isListening && (
@@ -58,7 +58,7 @@ export function TranscriptPanel({ messages, isSpeaking, isListening }: Transcrip
               “A conversation about your vision...”
             </p>
             <p className="mt-1">
-              Click &apos;Begin Voice Consultation&apos; to start talking with Tisha.
+              Click &apos;Begin Voice Consultation&apos; to start talking with Dhruv.
             </p>
           </div>
         ) : (
@@ -84,7 +84,7 @@ export function TranscriptPanel({ messages, isSpeaking, isListening }: Transcrip
               >
                 <div className="flex items-center justify-between gap-4 mb-1 text-[10px] opacity-60">
                   <span className="font-semibold uppercase tracking-wider">
-                    {msg.role === "assistant" ? "Tisha (HDFC Bank Prototype)" : "You"}
+                    {msg.role === "assistant" ? "Dhruv (HDFC Bank Prototype)" : "You"}
                   </span>
                   {msg.time && <span>{msg.time}</span>}
                 </div>

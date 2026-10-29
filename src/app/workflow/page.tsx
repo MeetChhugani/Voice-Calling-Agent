@@ -140,7 +140,7 @@ export default function AutomationWorkflowPage() {
             <Link
               href="/"
               className="p-2 rounded-xl border border-neutral-700/60 bg-neutral-800/40 hover:bg-neutral-800 text-neutral-300 transition-colors"
-              title="Return to Tisha Voice Agent"
+              title="Return to Dhruv Voice Agent"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>

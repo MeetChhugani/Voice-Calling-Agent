@@ -85,7 +85,7 @@ export const LeadSchema = z.object({
   preferred_meeting_times: z.string().optional().nullable(),
   timezone: z.string().default("Asia/Kolkata"),
   consent_status: z.boolean().default(true),
-  source: z.string().default("voice_agent_tisha"),
+  source: z.string().default("voice_agent_dhruv"),
   call_summary: z.string().optional().nullable(),
   lead_status: LeadStatusEnum.default("new_lead"),
   internal_notes: z.string().optional().nullable(),

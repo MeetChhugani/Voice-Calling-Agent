@@ -145,7 +145,7 @@ export class ExcelService {
     const dataRows = rows || this.getAllHDFCRequests();
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "HDFC Bank";
-    workbook.lastModifiedBy = "Tisha AI Customer Assistance Voice Agent";
+    workbook.lastModifiedBy = "Dhruv AI Customer Assistance Voice Agent";
     workbook.created = new Date();
     workbook.modified = new Date();
 

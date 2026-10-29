@@ -29,7 +29,7 @@ export function RequirementsSummary({ lead }: RequirementsSummaryProps) {
 
       {!hasData ? (
         <div className="text-xs text-[#18191A]/50 py-6 text-center italic">
-          Requirements will be catalogued in real-time as Tisha guides the conversation.
+          Requirements will be catalogued in real-time as Dhruv guides the conversation.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">

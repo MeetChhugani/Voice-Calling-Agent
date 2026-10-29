@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { VAPI_ASSISTANT_CONFIG } from "@/config/tisha-system-prompt";
+import { VAPI_ASSISTANT_CONFIG } from "@/config/dhruv-system-prompt";
 
 export const dynamic = "force-dynamic";
 
