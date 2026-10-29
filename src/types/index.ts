@@ -108,7 +108,7 @@ export const MeetingSchema = z.object({
 });
 export type Meeting = z.infer<typeof MeetingSchema>;
 
-// ─── Vapi Tool Input Schemas for HDFC Bank Agent ─────────────────────────────
+// ─── HDFC Bank Agent Tool Input Schemas ───────────────────────────────────────
 
 export const SearchBankInfoInputSchema = z.object({
   query: z.string().describe("Specific banking product or service query (e.g. 'home loan interest rates', 'savings account minimum balance', 'block credit card')"),
