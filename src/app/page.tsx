@@ -54,6 +54,7 @@ export default function HdfcVoiceAssistantPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("call");
   const [typedMessage, setTypedMessage] = useState("");
   const [typedMessageStatus, setTypedMessageStatus] = useState<string | null>(null);
+  const [transcriptConsent, setTranscriptConsent] = useState(false);
 
   // My Request lookup
   const [requestPhone, setRequestPhone] = useState("");
@@ -114,6 +115,10 @@ export default function HdfcVoiceAssistantPage() {
   }, [messages]);
 
   const startCall = useCallback(async () => {
+    if (!transcriptConsent) {
+      setErrorMessage("Please agree to transcript storage before starting the call.");
+      return;
+    }
     const vapi = vapiRef.current;
     if (!vapi) {
       setErrorMessage("Vapi is not configured. Add NEXT_PUBLIC_VAPI_PUBLIC_KEY and NEXT_PUBLIC_VAPI_ASSISTANT_ID in your deployment settings.");
@@ -125,19 +130,19 @@ export default function HdfcVoiceAssistantPage() {
     try {
       const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID?.trim();
       if (assistantId && !assistantId.includes("your_vapi_assistant_id")) {
-        await vapi.start(assistantId);
+        await vapi.start(assistantId, { variableValues: { transcriptConsent: "granted" } });
       } else {
         const response = await fetch("/api/vapi/config", { cache: "no-store" });
         if (!response.ok) throw new Error("Could not load the Vapi assistant configuration.");
         const config = await response.json();
         if (!config.assistantConfig) throw new Error("Vapi assistant configuration is unavailable.");
-        await vapi.start(config.assistantConfig);
+        await vapi.start(config.assistantConfig, { variableValues: { transcriptConsent: "granted" } });
       }
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to start call.");
       setCallStatus("ready");
     }
-  }, []);
+  }, [transcriptConsent]);
 
   const endCall = useCallback(() => {
     try {
@@ -327,6 +332,17 @@ export default function HdfcVoiceAssistantPage() {
                 </div>
               </div>
             </div>
+            {!callActive && (
+              <label className="relative z-10 mt-5 flex max-w-[420px] items-start gap-2.5 rounded-xl border border-blue-100 bg-white/85 p-3 text-[10px] leading-relaxed text-slate-600 shadow-sm">
+                <input
+                  type="checkbox"
+                  checked={transcriptConsent}
+                  onChange={(event) => { setTranscriptConsent(event.target.checked); setErrorMessage(null); }}
+                  className="mt-0.5 accent-[#004C8F]"
+                />
+                <span>I agree to save a text transcript of this call and any issue/contact details I choose to share for staff follow-up. Call audio is not stored in this dashboard. I will not share my full account number, OTP, PIN, password, CVV, or full card number.</span>
+              </label>
+            )}
             <p className="relative z-10 mt-7 text-center text-xs text-slate-500">{callStatus === "ready" ? "Tap the button to begin" : callStatus === "connecting" ? "Connecting securely…" : callActive ? "Tap red to end · Use the mic to mute" : "Call ended · Tap to start again"}</p>
             {errorMessage && <div className="relative z-10 mt-3 flex max-w-sm items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-800"><AlertCircle className="h-4 w-4 shrink-0" />{errorMessage}</div>}
             <div className="relative z-10 mt-6 w-full max-w-[420px] rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm sm:p-4">

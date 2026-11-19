@@ -11,11 +11,15 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid input", details: parsed.error.issues }, { status: 400 });
     }
+    if (!parsed.data.consent_given) {
+      return NextResponse.json({ error: "Explicit permission is required before storing this request." }, { status: 400 });
+    }
     const result = await SupportRequestService.createRequest({
       customer_name: parsed.data.customer_name,
       phone: parsed.data.phone,
       phone_verified: parsed.data.phone_verified,
       email: parsed.data.email,
+      account_last4: parsed.data.account_last4,
       category: parsed.data.category,
       product_type: parsed.data.product_type,
       issue_summary: parsed.data.issue_summary,

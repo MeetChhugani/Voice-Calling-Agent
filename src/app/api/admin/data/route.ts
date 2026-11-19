@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { SupportRequestService } from "@/services/support-request-service";
 import { ExcelService } from "@/services/excel-service";
+import { VoiceCallService, type VoiceCallTranscriptRecord } from "@/services/voice-call-service";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,14 @@ export async function GET(request: Request) {
 
     const requests = await SupportRequestService.getAllRequests();
     const excelRequests = ExcelService.getAllHDFCRequests();
+    let callTranscripts: VoiceCallTranscriptRecord[] = [];
+    let callTranscriptWarning: string | null = null;
+    try {
+      callTranscripts = await VoiceCallService.getAllTranscripts();
+    } catch (error) {
+      console.error("[API admin/data] call transcripts unavailable:", error);
+      callTranscriptWarning = "Call transcript storage is unavailable. Apply the latest Supabase migration to enable it.";
+    }
 
     const totalRequests = requests.length;
     const fraudAlerts = requests.filter((r) => r.is_fraud_or_urgent).length;
@@ -35,7 +44,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       metrics: {
-        totalSessions: totalRequests,
+        totalSessions: callTranscripts.length,
         totalRequests,
         fraudAlerts,
         pendingCallbacks,
@@ -44,6 +53,8 @@ export async function GET(request: Request) {
         excelRecordsCount: excelRequests.length,
       },
       supportRequests: requests,
+      callTranscripts,
+      callTranscriptWarning,
       excelRecords: excelRequests,
       leads: [],
       meetings: [],

@@ -48,6 +48,9 @@ STRICT BANKING SECURITY & FRAUD RULES (NON-NEGOTIABLE):
 
 PHONE NUMBER COLLECTION & DIGIT-BY-DIGIT VERIFICATION:
 - India (+91) is default.
+- When opening a customer service request, ask for either a callback phone number OR an email address, one question at a time. Do not demand both.
+- For an account-specific issue, ask only for the LAST FOUR account digits if needed to identify the product. NEVER ask for or store the full account number.
+- Before submitting a request, summarize the issue, confirm the chosen contact detail, and ask explicit permission to store the contact detail and issue for staff follow-up. Do not submit without an affirmative answer.
 - When collecting a 10-digit mobile number for a callback or support request, ALWAYS verify it by repeating every digit separately:
   Example: "Let me confirm your number: nine, eight, one, one, zero, zero, two, two, three, three. Is that correct?"
 - Only confirm the service request after the customer explicitly agrees to the repeated digits.
@@ -119,13 +122,15 @@ export const VAPI_ASSISTANT_CONFIG = {
         type: "function",
         function: {
           name: "create_support_request",
-          description: "Generates a genuine HDFC Bank customer service ticket / callback request with a verified ticket ID (e.g. HDFC-SR-123456).",
+          description: "Creates a customer service issue ticket. Ask whether the customer prefers follow-up by phone or email; collect only one contact method. For account-specific issues, collect only the last four account digits, never the full number. Summarize the issue and obtain explicit permission to store the issue and contact details before calling this tool.",
           parameters: {
             type: "object",
             properties: {
               customer_name: { type: "string", description: "Customer's full name" },
-              phone: { type: "string", description: "Customer's 10-digit mobile number" },
+              phone: { type: "string", description: "Optional callback number. Use this or email for follow-up." },
               phone_verified: { type: "boolean", description: "Whether phone digits were verified digit-by-digit" },
+              email: { type: "string", description: "Optional follow-up email address; use this or phone." },
+              account_last4: { type: "string", description: "Optional last four account digits only for account-specific issues. Never send a full account number." },
               category: {
                 type: "string",
                 enum: [
@@ -142,9 +147,9 @@ export const VAPI_ASSISTANT_CONFIG = {
               issue_summary: { type: "string", description: "Clear, non-sensitive summary of customer inquiry" },
               is_fraud_or_urgent: { type: "boolean", description: "Set true if urgent card loss, unauthorized txn, or security issue" },
               preferred_callback_time: { type: "string", description: "Customer preferred callback timing" },
-              consent_given: { type: "boolean", description: "Customer explicitly consented to follow-up" },
+              consent_given: { type: "boolean", description: "Set true only after the customer explicitly agrees to store the contact and issue for staff follow-up." },
             },
-            required: ["customer_name", "phone", "issue_summary"],
+            required: ["customer_name", "issue_summary", "consent_given"],
           },
         },
       },
@@ -193,6 +198,7 @@ export const VAPI_ASSISTANT_CONFIG = {
             properties: {
               request_id: { type: "string", description: "Ticket ID e.g. HDFC-SR-100234" },
               phone: { type: "string", description: "Customer contact number" },
+              email: { type: "string", description: "Customer email address" },
             },
           },
         },

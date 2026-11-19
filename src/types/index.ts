@@ -25,9 +25,11 @@ export type SupportRequestStatus = z.infer<typeof SupportRequestStatusEnum>;
 export const SupportRequestSchema = z.object({
   id: z.string().describe("Unique Ticket ID e.g. HDFC-SR-123456"),
   customer_name: z.string().min(1, "Customer name is required"),
-  phone: z.string().min(8, "Valid contact number required"),
+  phone: z.string().min(8, "Valid contact number required").optional().nullable(),
   phone_verified: z.boolean().default(false),
   email: z.string().email().optional().or(z.literal("")).nullable(),
+  account_last4: z.string().regex(/^\d{4}$/, "Enter only the last four account digits").optional().nullable(),
+  call_id: z.string().optional().nullable(),
   category: BankingCategoryEnum.default("general"),
   product_type: z.string().optional().nullable(), // e.g. "Salary Account", "Home Loan", "Regalia Gold Card"
   issue_summary: z.string().min(1, "Issue or inquiry description"),
@@ -118,15 +120,19 @@ export type SearchBankInfoInput = z.infer<typeof SearchBankInfoInputSchema>;
 
 export const CreateSupportRequestInputSchema = z.object({
   customer_name: z.string().min(1, "Customer name is required"),
-  phone: z.string().min(8, "Customer phone number is required"),
+  phone: z.union([z.string().min(8, "Customer phone number must be valid"), z.literal("")]).optional().nullable(),
   phone_verified: z.boolean().default(false).describe("Whether phone digits were verified digit-by-digit with the customer"),
   email: z.string().email().optional().or(z.literal("")).nullable(),
+  account_last4: z.string().regex(/^\d{4}$/, "Only the last four account digits are allowed").optional().nullable(),
   product_type: z.string().optional().nullable(),
   category: BankingCategoryEnum.default("general").describe("Banking category for the query"),
   issue_summary: z.string().describe("Short, clear summary of the customer's request or issue"),
   is_fraud_or_urgent: z.boolean().default(false).describe("True if customer reports card loss, unauthorized txn, or security emergency"),
   preferred_callback_time: z.string().optional().nullable().describe("e.g. 'Today afternoon', 'Tomorrow 11 AM'"),
-  consent_given: z.boolean().default(true).describe("Customer explicitly agreed to bank follow-up"),
+  consent_given: z.boolean().default(false).describe("Customer explicitly agreed to bank follow-up"),
+}).refine((data) => Boolean(data.phone?.trim() || data.email?.trim()), {
+  message: "Provide a phone number or email address for follow-up",
+  path: ["phone"],
 });
 export type CreateSupportRequestInput = z.infer<typeof CreateSupportRequestInputSchema>;
 
@@ -147,6 +153,7 @@ export type FindBranchAtmInput = z.infer<typeof FindBranchAtmInputSchema>;
 export const GetSupportRequestStatusInputSchema = z.object({
   request_id: z.string().optional().describe("Ticket ID e.g. HDFC-SR-123456"),
   phone: z.string().optional().describe("Customer phone number"),
+  email: z.string().email().optional().describe("Customer email address"),
 });
 export type GetSupportRequestStatusInput = z.infer<typeof GetSupportRequestStatusInputSchema>;
 

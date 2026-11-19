@@ -106,9 +106,11 @@ export class SupportRequestService {
    */
   public static async createRequest(params: {
     customer_name: string;
-    phone: string;
+    phone?: string | null;
     phone_verified?: boolean;
     email?: string | null;
+    account_last4?: string | null;
+    call_id?: string | null;
     category?: SupportRequest["category"];
     product_type?: string | null;
     issue_summary: string;
@@ -118,8 +120,8 @@ export class SupportRequestService {
     agent_notes?: string | null;
   }): Promise<{ success: boolean; ticket: SupportRequest; warning?: string }> {
     // 1. Sanitize all incoming text against security leaks
-    const sanitizedSummary = SecurityRedactionService.sanitize(params.issue_summary);
-    const sanitizedNotes = params.agent_notes ? SecurityRedactionService.sanitize(params.agent_notes) : null;
+    const sanitizedSummary = SecurityRedactionService.sanitizeTranscript(params.issue_summary);
+    const sanitizedNotes = params.agent_notes ? SecurityRedactionService.sanitizeTranscript(params.agent_notes) : null;
 
     // Generate genuine 6-digit ticket reference
     const randomSuffix = Math.floor(100000 + Math.random() * 900000);
@@ -128,9 +130,11 @@ export class SupportRequestService {
     const newTicket: SupportRequest = {
       id: ticketId,
       customer_name: params.customer_name.trim(),
-      phone: params.phone.trim(),
+      phone: params.phone?.trim() || null,
       phone_verified: Boolean(params.phone_verified),
       email: params.email?.trim() || null,
+      account_last4: params.account_last4?.replace(/\D/g, "").slice(-4) || null,
+      call_id: params.call_id || null,
       category: params.category || "general",
       product_type: params.product_type || null,
       issue_summary: sanitizedSummary.redactedText,
@@ -195,9 +199,10 @@ export class SupportRequestService {
 
     return all.filter((r) => {
       if (r.id.toLowerCase() === clean) return true;
+      if (r.email?.toLowerCase() === clean) return true;
       if (cleanDigits.length >= 5) {
-        const rDigits = r.phone.replace(/\D/g, "");
-        if (rDigits.includes(cleanDigits) || cleanDigits.includes(rDigits)) return true;
+        const rDigits = (r.phone || "").replace(/\D/g, "");
+        if (rDigits && (rDigits.includes(cleanDigits) || cleanDigits.includes(rDigits))) return true;
       }
       return false;
     });
@@ -210,9 +215,10 @@ export class SupportRequestService {
 
     return all.filter((request) => {
       if (request.id.toLowerCase() === clean) return true;
+      if (request.email?.toLowerCase() === clean) return true;
       if (cleanDigits.length >= 5) {
-        const requestDigits = request.phone.replace(/\D/g, "");
-        return requestDigits.includes(cleanDigits) || cleanDigits.includes(requestDigits);
+        const requestDigits = (request.phone || "").replace(/\D/g, "");
+        return Boolean(requestDigits && (requestDigits.includes(cleanDigits) || cleanDigits.includes(requestDigits)));
       }
       return false;
     });

@@ -105,6 +105,8 @@ export async function POST(request: Request) {
       phone: parsed.data.phone,
       phone_verified: parsed.data.phone_verified,
       email: parsed.data.email,
+      account_last4: parsed.data.account_last4,
+      call_id: getConversationId(body, args),
       category: parsed.data.category,
       product_type: parsed.data.product_type,
       issue_summary: parsed.data.issue_summary,

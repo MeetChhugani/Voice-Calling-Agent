@@ -10,6 +10,7 @@ import { BankKnowledgeService } from "@/services/bank-knowledge-service";
 import { SupportRequestService } from "@/services/support-request-service";
 import { SecurityRedactionService } from "@/services/security-redaction-service";
 import { SupabaseService } from "@/services/supabase";
+import { VoiceCallService } from "@/services/voice-call-service";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,20 @@ function toolResult(toolCallId: string, result: unknown) {
   return NextResponse.json({
     results: [{ toolCallId, result }],
   });
+}
+
+function transcriptToText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  return value.map((item: unknown) => {
+    if (!item || typeof item !== "object") return "";
+    const row = item as Record<string, unknown>;
+    const role = row.role === "assistant" ? "Dhruv" : "Customer";
+    const text = row.message || row.content || row.text || row.transcript;
+    if (typeof text !== "string" || !text.trim()) return "";
+    const time = typeof row.timestamp === "string" ? ` [${row.timestamp}]` : "";
+    return `${role}${time}: ${text.trim()}`;
+  }).filter(Boolean).join("\n");
 }
 
 export async function POST(request: Request) {
@@ -38,7 +53,8 @@ export async function POST(request: Request) {
         typeof rawArgs === "string" ? JSON.parse(rawArgs) : rawArgs ?? {};
       const tcId: string = toolCall?.id ?? "unknown";
 
-      console.log(`[Vapi Webhook] Tool: ${functionName}`, args);
+      // Do not log tool arguments: they can contain contact details or account digits.
+      console.log(`[Vapi Webhook] Tool: ${functionName}`);
 
       // ── search_verified_bank_information ────────────────────────────────
       if (functionName === "search_verified_bank_information") {
@@ -78,11 +94,16 @@ export async function POST(request: Request) {
         if (!parsed.success) {
           return toolResult(tcId, {
             error:
-              "Missing required details (name, phone, issue_summary). Please provide them.",
+              "Missing required details. Get the customer's name, issue summary, and either a phone number or email address.",
           });
         }
         // Sanitize before storing
-        const sanitized = SecurityRedactionService.sanitize(
+        if (!parsed.data.consent_given) {
+          return toolResult(tcId, {
+            error: "Please ask the customer for explicit permission to store their contact details and issue before submitting the request.",
+          });
+        }
+        const sanitized = SecurityRedactionService.sanitizeTranscript(
           parsed.data.issue_summary
         );
         const result = await SupportRequestService.createRequest({
@@ -90,6 +111,8 @@ export async function POST(request: Request) {
           phone: parsed.data.phone,
           phone_verified: parsed.data.phone_verified,
           email: parsed.data.email,
+          account_last4: parsed.data.account_last4,
+          call_id: message.call?.id || null,
           category: parsed.data.category,
           product_type: parsed.data.product_type,
           issue_summary: sanitized.redactedText,
@@ -101,7 +124,7 @@ export async function POST(request: Request) {
           success: true,
           ticket_id: result.ticket.id,
           status: result.ticket.status,
-          message: `Your service request has been registered. Your ticket ID is ${result.ticket.id}. Our team will contact you at the number provided during business hours.`,
+          message: `Your service request has been registered. Your ticket ID is ${result.ticket.id}. Our team will follow up using the contact method you provided.`,
           warning: result.warning,
         });
       }
@@ -125,6 +148,7 @@ export async function POST(request: Request) {
           issue_summary: sanitizedDesc.redactedText,
           category: "fraud_emergency",
           is_fraud_or_urgent: true,
+          call_id: message.call?.id || null,
           agent_notes: `FRAUD/EMERGENCY ALERT. Incident type: ${parsed.data.incident_type}. Auto-escalated for immediate callback.`,
         });
         return toolResult(tcId, {
@@ -162,13 +186,13 @@ export async function POST(request: Request) {
             error: "Please provide a valid ticket ID or phone number to check status.",
           });
         }
-        const lookupKey = parsed.data.request_id || parsed.data.phone || "";
+        const lookupKey = parsed.data.request_id || parsed.data.phone || parsed.data.email || "";
         const matches = await SupportRequestService.findByTicketOrPhoneAsync(lookupKey);
         if (matches.length === 0) {
           return toolResult(tcId, {
             found: false,
             message:
-              "No service request found with that ticket ID or phone number. Please check the details or call 1800 2600 for assistance.",
+              "No service request found with that ticket ID, phone number, or email. Please check the details or call 1800 2600 for assistance.",
           });
         }
         return toolResult(tcId, {
@@ -191,11 +215,42 @@ export async function POST(request: Request) {
 
     // ── END-OF-CALL REPORT ────────────────────────────────────────────────
     if (message?.type === "end-of-call-report") {
+      const call = message.call || {};
       const phone =
         message.customer?.number ||
-        message.call?.customer?.number;
+        call.customer?.number ||
+        call.phoneNumber?.number ||
+        call.phoneNumber;
       const summary = message.summary || message.analysis?.summary || "";
-      if (phone) {
+      const callId = call.id || message.callId;
+      const assistantOverrides = call.assistantOverrides || {};
+      const transcriptConsent = assistantOverrides.variableValues?.transcriptConsent === "granted";
+      const rawTranscript = transcriptToText(
+        message.artifact?.transcript || message.transcript || message.artifact?.messages
+      );
+      if (callId && transcriptConsent) {
+        try {
+          const cleanTranscript = SecurityRedactionService.sanitizeTranscript(rawTranscript).redactedText;
+          await VoiceCallService.saveTranscript({
+            call_id: String(callId),
+            call_type: call.type || null,
+            customer_name: message.customer?.name || call.customer?.name || null,
+            phone: typeof phone === "string" ? phone : null,
+            email: message.customer?.email || call.customer?.email || null,
+            account_last4: null,
+            support_request_id: null,
+            transcript: cleanTranscript,
+            summary: String(summary || "") || null,
+            ended_reason: message.endedReason || call.endedReason || null,
+            started_at: message.startedAt || call.startedAt || null,
+            ended_at: message.endedAt || call.endedAt || null,
+          });
+        } catch (e) {
+          console.error("[Webhook] transcript persistence failed:", e);
+          return NextResponse.json({ error: "Could not store the call transcript." }, { status: 500 });
+        }
+      }
+      if (phone && transcriptConsent) {
         try {
           await SupabaseService.saveOrUpdateLead({
             full_name: message.customer?.name || "HDFC Assist Caller",

@@ -110,7 +110,7 @@ export class ExcelService {
     const newRow: ExcelSupportRequestRow = {
       TicketID: ticket.id,
       CustomerName: ticket.customer_name,
-      PhoneNumber: ticket.phone,
+      PhoneNumber: ticket.phone || "",
       PhoneVerified: ticket.phone_verified ? "YES" : "PENDING",
       Email: ticket.email || "Not Provided",
       Category: ticket.category.toUpperCase(),

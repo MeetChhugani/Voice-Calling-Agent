@@ -72,6 +72,32 @@ export class SecurityRedactionService {
     };
   }
 
+  /** Redact account identifiers from transcripts before persistence. */
+  public static sanitizeTranscript(text: string): SecurityCheckResult {
+    const sanitized = this.sanitize(text);
+    let redacted = sanitized.redactedText;
+    const violations = [...sanitized.violationsDetected];
+
+    const contextualAccountPattern = /\b(?:account|a\/c)\s*(?:(?:number|no\.?|#)\s*)?(?:is|:|=)?\s*[0-9][0-9\s-]{7,22}/gi;
+    const afterContextual = redacted.replace(contextualAccountPattern, (match) => {
+      violations.push("ACCOUNT_NUMBER_DETECTED");
+      return match.replace(/[0-9][0-9\s-]{7,22}$/, "[REDACTED_ACCOUNT_NUMBER]");
+    });
+    if (afterContextual !== redacted) redacted = afterContextual;
+
+    // Long unlabelled digit strings can be account numbers or card data. They
+    // are unnecessary in a support transcript; contact details are stored in
+    // their separate fields instead.
+    const longDigitSequence = /\b(?:\d[\s-]?){11,18}\b/g;
+    const afterLongDigits = redacted.replace(longDigitSequence, () => {
+      violations.push("LONG_IDENTIFIER_DETECTED");
+      return "[REDACTED_FINANCIAL_IDENTIFIER]";
+    });
+    if (afterLongDigits !== redacted) redacted = afterLongDigits;
+
+    return { isSafe: violations.length === 0, redactedText: redacted, violationsDetected: violations };
+  }
+
   /**
    * Safety banner for customers reminding never to share secrets
    */

@@ -11,8 +11,25 @@ import {
   LogOut,
   Phone,
   FileSpreadsheet,
+  MessageSquareText,
 } from "lucide-react";
 import { SupportRequest } from "@/types";
+
+interface CallTranscriptRecord {
+  call_id: string;
+  call_type: string | null;
+  customer_name: string | null;
+  phone: string | null;
+  email: string | null;
+  account_last4: string | null;
+  support_request_id: string | null;
+  transcript: string;
+  summary: string | null;
+  ended_reason: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+}
 
 interface AdminMetrics {
   totalSessions: number;
@@ -31,6 +48,8 @@ export default function AdminDashboardPage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [requests, setRequests] = useState<SupportRequest[]>([]);
+  const [callTranscripts, setCallTranscripts] = useState<CallTranscriptRecord[]>([]);
+  const [callTranscriptWarning, setCallTranscriptWarning] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<AdminMetrics>({
     totalSessions: 0,
     totalRequests: 0,
@@ -59,6 +78,8 @@ export default function AdminDashboardPage() {
       }
       const data = await res.json();
       setRequests(data.supportRequests || []);
+      setCallTranscripts(data.callTranscripts || []);
+      setCallTranscriptWarning(data.callTranscriptWarning || null);
       setMetrics(
         data.metrics || {
           totalSessions: 0,
@@ -121,7 +142,9 @@ export default function AdminDashboardPage() {
   const filteredRequests = requests.filter((r) => {
     const matchesSearch =
       r.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.phone.includes(searchQuery) ||
+      (r.phone || "").includes(searchQuery) ||
+      (r.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.account_last4 || "").includes(searchQuery) ||
       r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.issue_summary.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -131,6 +154,13 @@ export default function AdminDashboardPage() {
       (categoryFilter === "fraud" && r.is_fraud_or_urgent);
 
     return matchesSearch && matchesCategory;
+  });
+
+  const filteredCallTranscripts = callTranscripts.filter((call) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return [call.customer_name, call.phone, call.email, call.call_id, call.transcript]
+      .some((value) => value?.toLowerCase().includes(query));
   });
 
   if (loading) {
@@ -370,6 +400,7 @@ export default function AdminDashboardPage() {
                   <th className="px-4 py-3">Ticket ID</th>
                   <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Phone</th>
+                  <th className="px-4 py-3">Account</th>
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Issue Summary</th>
@@ -380,7 +411,7 @@ export default function AdminDashboardPage() {
               <tbody className="divide-y divide-slate-800">
                 {filteredRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={9} className="px-6 py-8 text-center text-slate-500">
                       No service requests match the current criteria.
                     </td>
                   </tr>
@@ -388,12 +419,18 @@ export default function AdminDashboardPage() {
                   filteredRequests.map((req) => (
                     <tr key={req.id} className="hover:bg-slate-800/40 transition-colors">
                       <td className="px-4 py-3 font-mono font-bold text-white whitespace-nowrap">{req.id}</td>
-                      <td className="px-4 py-3 font-medium text-slate-200 whitespace-nowrap">{req.customer_name}</td>
+                      <td className="px-4 py-3 font-medium text-slate-200 whitespace-nowrap">
+                        <div>{req.customer_name}</div>
+                        {req.email && <div className="text-[10px] text-slate-400 font-normal mt-1">{req.email}</div>}
+                      </td>
                       <td className="px-4 py-3 font-mono text-slate-300 whitespace-nowrap">
                         <span className="flex items-center gap-1.5">
                           <Phone className="w-3 h-3 text-slate-400" />
-                          {req.phone}
+                          {req.phone || "—"}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-400 whitespace-nowrap">
+                        {req.account_last4 ? `•••• ${req.account_last4}` : "—"}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-[11px] capitalize">
@@ -434,6 +471,48 @@ export default function AdminDashboardPage() {
             </table>
           </div>
         </div>
+
+        <section className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-md">
+          <div className="px-6 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <MessageSquareText className="w-4 h-4 text-cyan-400" />
+              <span>Call Transcripts</span>
+              <span className="text-xs text-slate-400 font-normal">({filteredCallTranscripts.length} matching)</span>
+            </h2>
+            <p className="text-[11px] text-slate-400">Transcript text only · call audio is not stored here</p>
+          </div>
+          {callTranscriptWarning && (
+            <p className="border-b border-amber-500/20 bg-amber-500/10 px-5 py-3 text-xs text-amber-200">
+              {callTranscriptWarning}
+            </p>
+          )}
+          <div className="divide-y divide-slate-800">
+            {filteredCallTranscripts.length === 0 ? (
+              <p className="px-6 py-8 text-center text-slate-500 text-xs">No call transcripts have been received yet.</p>
+            ) : filteredCallTranscripts.map((call) => (
+              <details key={call.call_id} className="group px-5 py-4">
+                <summary className="cursor-pointer list-none flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-white">{call.customer_name || "Caller"}</div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      {[call.phone, call.email, call.account_last4 ? `Account ending ${call.account_last4}` : null]
+                        .filter(Boolean).join(" · ") || "No contact details attached"}
+                    </div>
+                  </div>
+                  <div className="text-right text-xs text-slate-400">
+                    <div>{new Date(call.ended_at || call.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</div>
+                    {call.support_request_id && <div className="text-cyan-300 mt-1">Ticket {call.support_request_id}</div>}
+                  </div>
+                </summary>
+                {call.summary && <p className="mt-3 text-xs text-slate-300">{call.summary}</p>}
+                <pre className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-slate-950 border border-slate-800 p-4 text-xs leading-relaxed text-slate-200 font-sans">
+                  {call.transcript || "No transcript text was included in the call report."}
+                </pre>
+                <div className="mt-2 text-[10px] text-slate-500">Call ID: {call.call_id}{call.ended_reason ? ` · ${call.ended_reason}` : ""}</div>
+              </details>
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );
